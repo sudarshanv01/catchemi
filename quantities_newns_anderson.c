@@ -3,34 +3,6 @@
 #include <math.h>
 #include "arb.h"
 
-// Function declarations
-float get_Delta_semiellipse(float Vak, float eps, float eps_d, float w_d);
-float get_Lambda_semiellipse(float Vak, float eps, float eps_d, float w_d);
-float get_eps_difference(float eps, float eps_a);
-
-// Define all the quantities needed for the Newns-Anderson
-// method. These include Delta, Lambda (Hilbert transform of Delta)
-// and the energy difference between eps - eps_a
-
-int main()
-{
-    float Vak=1.0; 
-    float eps=-2.0;
-    float eps_a=0.0;
-    float eps_d=0.0;
-    float wd=1.0;
-    float Delta;
-    float Lambda;
-    float eps_diff;
-
-    Delta = get_Delta_semiellipse(Vak, eps, eps_d, wd);
-    printf("Delta = %f\n", Delta);
-    Lambda = get_Lambda_semiellipse(Vak, eps, eps_d, wd);
-    printf("Lambda = %f\n", Lambda);
-    eps_diff = get_eps_difference(eps, eps_a);
-    printf("eps_diff = %f\n", eps_diff);
-}
-
 // Define the function for Delta
 float get_Delta_semiellipse(float Vak, float eps, float eps_d, float wd)
 {

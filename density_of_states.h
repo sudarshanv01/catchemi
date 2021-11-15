@@ -1,0 +1,1 @@
+float density_of_states_semiellipse(float Delta, float Lambda, float eps_diff, float Delta0); 
