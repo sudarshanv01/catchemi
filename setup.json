@@ -1,0 +1,25 @@
+{
+    "author": "Sudarshan Vijay",
+    "classifiers": [
+        "Development Status :: 1 - Planning",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS :: MacOS X",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9"
+    ],
+    "description": "Parses the aimd trajectories and puts them into an ASE database.",
+    "python_requires": ">=3.8",
+    "install_requires": [
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "ase",
+        "click",
+        "PyYAML",
+        "python-flint"
+    ],
+    "license": "MIT License",
+    "name": "norskov_newns_anderson",
+    "version": "0.0.01"
+}
