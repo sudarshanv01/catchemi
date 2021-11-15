@@ -17,13 +17,21 @@ int main()
     float Lambda;
     float eps_diff;
     float dos;
+    int precision = 100;
+
+    arb_t Vak_arb, eps_arb, eps_d_arb, wd_arb, Delta_arb;
+    // Set arb quantities
+//     arb_set_d(Vak_arb, Vak);
+//     arb_set_d(eps_arb, eps);
+//     arb_set_d(eps_d_arb, eps_d);
+//     arb_set_d(wd_arb, wd);
+    // Output quantities for arb
 
     Delta = get_Delta_semiellipse(Vak, eps, eps_d, wd);
     printf("Delta = %f\n", Delta);
-    Lambda = get_Lambda_semiellipse(Vak, eps, eps_d, wd);
-    printf("Lambda = %f\n", Lambda);
-    eps_diff = get_eps_difference(eps, eps_a);
-    printf("eps_diff = %f\n", eps_diff);
-    dos = density_of_states_semiellipse(Delta, Lambda, eps_diff, Delta0);
-    printf("dos = %f\n", dos);
+//     get_Delta_semiellipse_arb(Delta_arb, Vak_arb, eps_arb, eps_d_arb, wd_arb, precision);
+//     printf("Delta (arb) = %.*f\n", Delta);
+
+    return 0;
 }
+    
