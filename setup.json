@@ -17,6 +17,7 @@
         "ase",
         "click",
         "PyYAML",
+        "Cython",
         "python-flint"
     ],
     "license": "MIT License",
