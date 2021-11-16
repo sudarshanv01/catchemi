@@ -1,4 +1,4 @@
-float get_Delta_semiellipse(float Vak, float eps, float eps_d, float w_d);
-float get_Lambda_semiellipse(float Vak, float eps, float eps_d, float w_d);
-float get_eps_difference(float eps, float eps_a);
-// void get_Delta_semiellipse_arb(arb_t Delta, arb_t Vak, arb_t eps, arb_t eps_d, arb_t wd, int prec)
+#include <acb.h>
+void get_Delta_semiellipse(acb_t Delta, double Vak_f, double eps_f, double eps_d_f, double wd_f, long prec);
+void get_Lambda_semiellipse(acb_t Lambda, double Vak_f, double eps_f, double eps_d_f, double wd_f, long prec);
+void get_energy_difference(acb_t energy_difference, double eps_f, double eps_a_f, int prec);

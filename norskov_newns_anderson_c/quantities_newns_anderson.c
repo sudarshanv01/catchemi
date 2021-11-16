@@ -2,101 +2,148 @@
 #include <stdlib.h>
 #include <math.h>
 #include "arb.h"
+#include "acb.h"
 
-// Define the function for Delta
-float get_Delta_semiellipse(float Vak, float eps, float eps_d, float wd)
+// Define the Delta function in acb
+void get_Delta_semiellipse(acb_t Delta, double Vak_f, double eps_f, double eps_d_f, double wd_f, int prec)
 {
-    float Delta;
-    float norm_eps;
+    acb_t Vak, eps, eps_d, wd, norm_eps;
+    arb_t norm_eps_real;
+    arb_t lower_energy, upper_energy;
+    double lower_energy_f = -1.0;
+    double upper_energy_f = 1.0;
 
-    // Normalised epsilon keeps track of Delta to make sure
-    // that only the Delta within the eps_d +- wd region is
-    // non-zero, everything else is zero.
-    norm_eps = (eps - eps_d) / wd;
+    // Initialise the acb_t variables
+    acb_init(Vak);
+    acb_init(eps);
+    acb_init(eps_d);
+    acb_init(wd);
+    acb_init(norm_eps);
+    // Initialise the arb variables
+    arb_init(lower_energy);
+    arb_init(upper_energy);
+    arb_init(norm_eps_real);
 
-    if (norm_eps > 1.0)
+    // Get the acb form of the input variables
+    acb_set_d(Vak, Vak_f);
+    acb_set_d(eps, eps_f);
+    acb_set_d(eps_d, eps_d_f);
+    acb_set_d(wd, wd_f);
+    arb_set_d(lower_energy, lower_energy_f);
+    arb_set_d(upper_energy, upper_energy_f);
+
+    // Store the norm_eps variable
+    acb_sub(norm_eps, eps, eps_d, prec);
+    acb_div(norm_eps, norm_eps, wd, prec);
+    // Store also the real part of norm_eps
+    acb_get_real(norm_eps_real, norm_eps);
+
+    // Initialise the Delta variable
+    // If the norm_eps is greater than 1, set Delta to zero
+    // If the norm_eps is less than -1, set Delta to zero
+    // Otherwise, calculate Delta
+    if (arb_gt(norm_eps_real, upper_energy))
     {
-        Delta = 0.0;
+        acb_set_ui(Delta, 0);
     }
-    else if (norm_eps < -1.0)
+    else if (arb_lt(norm_eps_real, lower_energy))
     {
-        Delta = 0.0;
+        acb_set_ui(Delta, 0);
     }
     else
     {
-        Delta = pow(Vak, 2) * pow( 1 - pow( norm_eps, 2), 0.5 ) ; 
-        Delta /= wd / 2 ;
+        acb_set(Delta, norm_eps);
+        acb_sqr(Delta, Delta, prec);
+        acb_neg(Delta, Delta);
+        acb_add_ui(Delta, Delta, 1, prec);
+        acb_sqrt(Delta, Delta, prec);
+        acb_mul(Delta, Delta, Vak, prec);
+        acb_mul(Delta, Delta, Vak, prec);
+        acb_div(Delta, Delta, wd, prec);
     }
-
-    return Delta;
 }
 
-// void get_Delta_semiellipse_arb(arb_t Delta, arb_t Vak, arb_t eps, arb_t eps_d, arb_t wd, int prec)
-// {
-//     arb_t norm_eps; // Normalised epsilon to keep track of where we are in energy
-//     arb_t lower_energy_bound; // Lower bound for energy
-//     arb_t upper_energy_bound; // Upper bound for energy
-
-//     // Normalised epsilon keeps track of Delta to make sure
-//     // that only the Delta within the eps_d +- wd region is
-//     // non-zero, everything else is zero.
-//     arb_sub(norm_eps, eps, eps_d, prec);
-//     arb_div(norm_eps, norm_eps, wd, prec);
-//     arb_set_ui(lower_energy_bound, -1);
-//     arb_set_ui(upper_energy_bound, 1);
-
-//     // If norm_eps is greater than 1, then Delta is zero
-//     // If it is less than -1, then Delta is zero
-//     // Otherwise, Delta is the value of the function 
-//     // Delta = Vak^2 * ( 1 - norm_eps^2 )^0.5 / wd / 2
-//     if (arb_gt(norm_eps, upper_energy_bound))
-//     {
-//         arb_zero(Delta);
-//     }
-//     else if (arb_lt(norm_eps, lower_energy_bound)) 
-//     {
-//         arb_zero(Delta);
-//     }
-//     else
-//     {
-//         arb_zero(Delta);
-//     }
-// }
-
-
-// Define the function for Lambda
-float get_Lambda_semiellipse(float Vak, float eps, float eps_d, float wd)
+void get_Lambda_semiellipse(acb_t Lambda_d, double Vak_f, double eps_f, double eps_d_f, double wd_f, int prec)
 {
-    float Lambda;
-    float norm_eps;
+    acb_t Vak, eps, eps_d, wd, norm_eps;
+    arb_t lower_energy, upper_energy;
+    arb_t norm_eps_real;
+    double lower_energy_f = -1.0;
+    double upper_energy_f = 1.0;
 
-    // Normalised epsilon keeps track of the position
-    // of Delta such that the analytical version of 
-    // Lambda is altered based on the energy supplied
+    // Initialise the acb_t variables
+    acb_init(Vak);
+    acb_init(eps);
+    acb_init(eps_d);
+    acb_init(wd);
+    acb_init(norm_eps);
+    // Initialise the arb variables
+    arb_init(lower_energy);
+    arb_init(upper_energy);
+    arb_init(norm_eps_real);
 
-    norm_eps = (eps - eps_d) / wd;
+    // Get the acb form of the input variables
+    acb_set_d(Vak, Vak_f);
+    acb_set_d(eps, eps_f);
+    acb_set_d(eps_d, eps_d_f);
+    acb_set_d(wd, wd_f);
+    arb_set_d(lower_energy, lower_energy_f);
+    arb_set_d(upper_energy, upper_energy_f);
 
-    if (norm_eps > 1.0)
+    // Store the norm_eps variable
+    acb_sub(norm_eps, eps, eps_d, prec);
+    acb_div(norm_eps, norm_eps, wd, prec);
+    // Store also the real part of norm_eps
+    acb_get_real(norm_eps_real, norm_eps);
+
+    // Initialise the Lambda_d variable
+    if ( arb_gt(norm_eps_real, upper_energy) ) 
     {
-        Lambda = M_PI * pow(Vak, 2) * ( norm_eps - pow( pow( norm_eps, 2) - 1, 0.5 ) );
+        printf("norm_eps > upper_energy\n");
+        acb_set(Lambda_d, norm_eps);
+        acb_sqr(Lambda_d, Lambda_d, prec);
+        acb_sub_ui(Lambda_d, Lambda_d, 1, prec);
+        acb_sqrt(Lambda_d, Lambda_d, prec);
+        acb_neg(Lambda_d, Lambda_d);
+        acb_add(Lambda_d, Lambda_d, norm_eps, prec);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_div(Lambda_d, Lambda_d, wd, prec);
     }
-    else if (norm_eps < -1.0)
+    else if ( arb_gt(lower_energy, norm_eps_real) )
     {
-        Lambda = M_PI * pow(Vak, 2) * ( norm_eps + pow( pow( norm_eps, 2) - 1, 0.5 ) );
+        printf("norm_eps < lower_energy\n");
+        acb_set(Lambda_d, norm_eps);
+        acb_sqr(Lambda_d, Lambda_d, prec);
+        acb_sub_ui(Lambda_d, Lambda_d, 1, prec);
+        acb_sqrt(Lambda_d, Lambda_d, prec);
+        acb_add(Lambda_d, Lambda_d, norm_eps, prec);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_div(Lambda_d, Lambda_d, wd, prec);
     }
     else
     {
-        Lambda = M_PI * pow(Vak, 2) * norm_eps;
+        printf("norm_eps >= lower_energy and norm_eps <= upper_energy\n");
+        acb_set(Lambda_d, norm_eps);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_mul(Lambda_d, Lambda_d, Vak, prec);
+        acb_div(Lambda_d, Lambda_d, wd, prec);
     }
-
-    return Lambda;
 }
 
-float get_eps_difference(float eps, float eps_a)
+void get_energy_difference(acb_t energy_difference, double eps_f, double eps_a_f, int prec)
 {
-    float eps_diff;
+    acb_t eps, eps_a;
 
-    eps_diff = eps - eps_a;
+    // Initialise the acb_t variables
+    acb_init(eps);
+    acb_init(eps_a);
 
-    return eps_diff;
+    // Get the acb form of the input variables
+    acb_set_d(eps, eps_f);
+    acb_set_d(eps_a, eps_a_f);
+
+    // Calculate the energy difference
+    acb_sub(energy_difference, eps, eps_a, prec);
 }
