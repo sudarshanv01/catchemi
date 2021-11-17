@@ -81,7 +81,7 @@ class NorskovNewnsAnderson:
         ortho_energy = np.array(ortho_energy)
 
         # Ensure that the orthonogonalisation energy is positive always
-        assert all(ortho_energy >= 0), "Orthogonalisation energy is positive"
+        assert all(ortho_energy >= 0), "Orthogonalisation energy is positive now it is (%1.2f)"%(ortho_energy)
 
         # Add the orthogonalisation energy to the hybridisation energy
         hybridisation_energy = spd_hybridisation_energy + ortho_energy
@@ -400,7 +400,7 @@ class NewnsAndersonNumerical:
         Lambda = self.create_Lambda_reg
 
         # Determine the energy of the system
-        numerator = Delta(eps) + self.Delta0
+        numerator = Delta(eps)
         denominator = eps_function(eps) - Lambda(eps)
 
         # find where self.eps is lower than 0
@@ -412,6 +412,24 @@ class NewnsAndersonNumerical:
             assert arctan_integrand <= 0, "Arctan integrand must be negative"
             assert arctan_integrand >= -np.pi, "Arctan integrand must be greater than -pi"
             return arctan_integrand
+    
+    def create_sp_integrand(self, eps):
+        """Create the energy integrand for the sp states."""
+        eps_function = self.create_adsorbate_line
+
+        # Determine the energy of the system
+        numerator = self.Delta0
+        denominator = eps_function(eps) # Lambda for a constant is 0.
+
+        if eps.real > 0:
+            return 0
+        else:
+            arctan_integrand = np.arctan2(numerator, denominator)
+            arctan_integrand -= np.pi
+            assert arctan_integrand <= 0, "Arctan integrand must be negative"
+            assert arctan_integrand >= -np.pi, "Arctan integrand must be greater than -pi"
+            return arctan_integrand
+
 
     def calculate_energy(self):
         """Calculate the energy from the Newns-Anderson model."""
@@ -422,7 +440,13 @@ class NewnsAndersonNumerical:
                             self.eps_min, 0,
                             points = (self.poles),
                             limit=100)[0]
-        self.DeltaE = delta_E_ * 2 / np.pi - 2 * self.eps_a
+        delta_E0_ = integrate.quad(self.create_sp_integrand,
+                            self.eps_min, 0,
+                            limit=100)[0]
+        delta_E_ += delta_E0_
+        self.DeltaE = delta_E_ * 2 / np.pi 
+        self.DeltaE -= 2 * self.eps_a
+        print(f'Energy of the system: {self.DeltaE} eV')
 
 @dataclass
 class NewnsAndersonAnalytical:
