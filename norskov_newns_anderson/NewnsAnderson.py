@@ -39,8 +39,18 @@ class NorskovNewnsAnderson:
         self.filling = np.array(self.filling)
         self.width = np.array(self.width)
 
-    def fit_parameters(self, eps_ds, alpha, beta, Delta0=2):
+    def fit_parameters(self, parameters, eps_ds):#alpha, beta, Delta0):
         """Fit the parameters alpha, beta, Delta0."""
+        if len(parameters) != 3:
+            Delta0 = 3.
+            alpha = parameters[0]
+            beta = parameters[1]
+        else:
+            alpha, beta, Delta0 = parameters
+        # Always use the absolute value 
+        alpha = abs(alpha)
+        beta = abs(beta)
+        Delta0 = abs(Delta0)
         # All the parameters here will have positive values
         # Vak assumed to be proportional to Vsd
         Vak = np.sqrt(beta) * self.Vsd
@@ -205,7 +215,7 @@ class NewnsAndersonNumerical:
         """Get the line eps - eps_a on a grid."""
         eps_function = self.create_adsorbate_line
         self._convert_to_float()
-        return eps_function(self.eps) - self.eps_a
+        return eps_function(self.eps)
 
     def create_reference_eps(self, eps):
         """Create the reference energy for finding Delta and Lambda."""
@@ -221,9 +231,10 @@ class NewnsAndersonNumerical:
             Delta = acb(1.)  -  acb.pow(eps_ref, 2)
             Delta = acb.pow(Delta, 0.5)
             # Multiply by the prefactor
-            Delta *= self.Vak**2
+            Delta *= acb.pi()**2 * self.Vak
             # Normalise the area
             Delta /= self.wd
+            Delta *= acb(2)
         else:
             # If eps is out of bounds there will
             # no Delta contribution
@@ -240,9 +251,10 @@ class NewnsAndersonNumerical:
             Delta = 1.  -  eps_ref**2
             Delta = Delta**0.5 
             # Multiply by the prefactor
-            Delta *= self.Vak**2
+            Delta *= np.pi**2 * self.Vak
             # Normalise the area
             Delta /= self.wd
+            Delta *= 2
         else:
             # If eps is out of bounds there will
             # no Delta contribution
@@ -256,21 +268,22 @@ class NewnsAndersonNumerical:
         if eps_ref.real < arb(-1): 
             # Below the lower edge of the d-band
             Lambda = eps_ref + acb.pow( eps_ref**2 - acb(1), 0.5 )
-            Lambda *= self.Vak**2
+            Lambda *= acb.pi()**2 * self.Vak
         elif eps_ref.real > arb(1):
             # Above the upper edge of the d-band
             Lambda = eps_ref - acb.pow( eps_ref**2 - acb(1), 0.5 )
-            Lambda *= self.Vak**2
+            Lambda *= acb.pi()**2 * self.Vak
         elif acb.abs_lower(eps_ref) <= arb(1): 
             # Inside the d-band
             Lambda = eps_ref
-            Lambda *=  self.Vak**2
+            Lambda *= acb.pi()**2 * self.Vak
         else:
             raise ValueError(f'eps_ = {eps} cannot be considered in Lambda')
         # Same normalisation for Lambda as for Delta
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
         Lambda /= self.wd
+        Lambda *= acb(2)
         return Lambda
 
     def create_Lambda_reg(self, eps):
@@ -280,21 +293,22 @@ class NewnsAndersonNumerical:
         if eps_ref < -1: 
             # Below the lower edge of the d-band
             Lambda = eps_ref + ( eps_ref**2 - 1 )**0.5
-            Lambda *= self.Vak**2
+            Lambda *= np.pi**2 * self.Vak
         elif eps_ref > 1:
             # Above the upper edge of the d-band
             Lambda = eps_ref - ( eps_ref**2 - 1 )**0.5
-            Lambda *= self.Vak**2
+            Lambda *= np.pi**2 * self.Vak
         elif eps_ref <= 1: 
             # Inside the d-band
             Lambda = eps_ref
-            Lambda *= self.Vak**2
+            Lambda *= np.pi**2 * self.Vak
         else:
             raise ValueError(f'eps_ = {eps} cannot be considered in Lambda')
         # Same normalisation for Lambda as for Delta
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
         Lambda /= self.wd
+        Lambda *= 2
         return Lambda
 
     def create_Lambda_prime_arb(self, eps):
@@ -309,8 +323,10 @@ class NewnsAndersonNumerical:
         elif acb.abs_lower(eps_ref) <= arb(1):
             # Inside the d-band
             Lambda_prime = 1
-        Lambda_prime *= self.Vak**2
+        Lambda_prime *= self.Vak
         Lambda_prime /= self.wd**2
+        Lambda_prime *= acb.pi()**2
+        Lambda_prime *= acb(2)
         return Lambda_prime
 
     def create_adsorbate_line(self, eps):
@@ -400,11 +416,11 @@ class NewnsAndersonNumerical:
         Lambda = self.create_Lambda_reg
 
         # Determine the energy of the system
-        numerator = Delta(eps)
+        numerator = Delta(eps) + self.Delta0
         denominator = eps_function(eps) - Lambda(eps)
 
         # find where self.eps is lower than 0
-        if eps.real > 0:
+        if eps > 0:
             return 0 
         else:
             arctan_integrand = np.arctan2(numerator, denominator)
@@ -421,7 +437,7 @@ class NewnsAndersonNumerical:
         numerator = self.Delta0
         denominator = eps_function(eps) # Lambda for a constant is 0.
 
-        if eps.real > 0:
+        if eps > 0:
             return 0
         else:
             arctan_integrand = np.arctan2(numerator, denominator)
@@ -440,10 +456,10 @@ class NewnsAndersonNumerical:
                             self.eps_min, 0,
                             points = (self.poles),
                             limit=100)[0]
-        delta_E0_ = integrate.quad(self.create_sp_integrand,
-                            self.eps_min, 0,
-                            limit=100)[0]
-        delta_E_ += delta_E0_
+        # delta_E0_ = integrate.quad(self.create_sp_integrand,
+        #                     self.eps_min, 0,
+        #                     limit=100)[0]
+        # delta_E_ += delta_E0_
         self.DeltaE = delta_E_ * 2 / np.pi 
         self.DeltaE -= 2 * self.eps_a
         print(f'Energy of the system: {self.DeltaE} eV')
