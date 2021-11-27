@@ -24,11 +24,12 @@ class NorskovNewnsAnderson:
     energies.
     """
     Vsd: list
-    filling: list
+    # filling: list
     width: list
     eps_a: float
     eps_min: float = -15
     eps_max: float = 15
+    Delta0: float = 2.
 
     def __post_init__(self):
         """Extra variables that are needed for the model."""
@@ -36,21 +37,15 @@ class NorskovNewnsAnderson:
         self.eps = np.linspace(self.eps_min, self.eps_max, 1000)
         # convert all lists to numpy arrays
         self.Vsd = np.array(self.Vsd)
-        self.filling = np.array(self.filling)
+        # self.filling = np.array(self.filling)
         self.width = np.array(self.width)
 
-    def fit_parameters(self, parameters, eps_ds):#alpha, beta, Delta0):
-        """Fit the parameters alpha, beta, Delta0."""
-        if len(parameters) != 3:
-            Delta0 = 3.
-            alpha = parameters[0]
-            beta = parameters[1]
-        else:
-            alpha, beta, Delta0 = parameters
+    def fit_parameters(self, parameters, eps_ds):
+        """Fit the parameters alpha, beta"""
         # Always use the absolute value 
+        alpha, beta, fixed_constant = parameters
         alpha = abs(alpha)
         beta = abs(beta)
-        Delta0 = abs(Delta0)
         # All the parameters here will have positive values
         # Vak assumed to be proportional to Vsd
         Vak = np.sqrt(beta) * self.Vsd
@@ -60,6 +55,7 @@ class NorskovNewnsAnderson:
 
         # We will need the occupancy of the single particle state
         na = np.zeros(len(eps_ds))
+        self.filling = np.zeros(len(eps_ds))
 
         # Loop over all the metals
         for i, eps_d in enumerate(eps_ds):
@@ -69,7 +65,7 @@ class NorskovNewnsAnderson:
                 eps_d = eps_d,
                 width = self.width[i],
                 eps = self.eps,
-                Delta0 = Delta0,
+                Delta0 = self.Delta0,
             )
 
             # The first component of the hybridisation energy
@@ -80,6 +76,7 @@ class NorskovNewnsAnderson:
             # for the orthogonalisation energy term
             hybridisation.calculate_occupancy()
             na[i] = hybridisation.get_occupancy()
+            self.filling[i] = hybridisation.get_dband_filling()
 
         # Ensure that the hybridisation energy is negative always
         assert all(spd_hybridisation_energy <= 0), "Hybridisation energy is negative"
@@ -95,6 +92,9 @@ class NorskovNewnsAnderson:
 
         # Add the orthogonalisation energy to the hybridisation energy
         hybridisation_energy = spd_hybridisation_energy + ortho_energy
+
+        # Add the fixed constant to the hybridisation energy
+        hybridisation_energy += fixed_constant
 
         # Store the hybridisation energy for all metals
         self.hybridisation_energy = hybridisation_energy
@@ -141,7 +141,9 @@ class NewnsAndersonNumerical:
     width: float
     eps_d: float
     eps: list 
-    Delta0: float
+    Delta0_mag: float
+    eps_sp_max: float
+    eps_sp_min: float
     precision: int = 50
 
     def __post_init__(self):
@@ -159,22 +161,26 @@ class NewnsAndersonNumerical:
     def _convert_to_acb(self):
         """Convert the important quantities to arb so 
         that they can be manipulated freely."""
-        self.eps_min = acb(self.eps_min)
-        self.eps_max = acb(self.eps_max)
-        self.wd = acb(self.wd)
-        self.eps_d = acb(self.eps_d)
-        self.eps_a = acb(self.eps_a)
-        self.Vak = acb(self.Vak)
-        self.Delta0 = acb(self.Delta0)
+        convert_to_acb = lambda x: acb(str(x))
+        self.eps_min = convert_to_acb(self.eps_min)
+        self.eps_max = convert_to_acb(self.eps_max)
+        self.eps_sp_min = convert_to_acb(self.eps_sp_min)
+        self.eps_sp_max = convert_to_acb(self.eps_sp_max)
+        self.wd = convert_to_acb(self.wd)
+        self.eps_d = convert_to_acb(self.eps_d)
+        self.eps_a = convert_to_acb(self.eps_a)
+        self.Vak = convert_to_acb(self.Vak)
     
     def _convert_to_float(self):
+        """Convert the important quantities to a float."""
         self.eps_min = float(self.eps_min.real)
         self.eps_max = float(self.eps_max.real)
+        self.eps_sp_min = float(self.eps_sp_min.real)
+        self.eps_sp_max = float(self.eps_sp_max.real)
         self.wd = float(self.wd.real)
         self.eps_d = float(self.eps_d.real)
         self.eps_a = float(self.eps_a.real)
         self.Vak = float(self.Vak.real)
-        self.Delta0 = float(self.Delta0.real)
 
     def get_energy(self):
         """Get the hybridisation energy."""
@@ -188,20 +194,23 @@ class NewnsAndersonNumerical:
         """Get the density of states."""
         eps_function = self.create_adsorbate_line
         Delta = self.create_Delta_reg
+        Delta0 = self.create_Delta0_reg
         Lambda = self.create_Lambda_reg
         self._convert_to_float()
         dos = np.zeros(len(self.eps))
         for i, eps_ in enumerate(self.eps):
-            numerator = Delta(eps_) + self.Delta0
-            denominator = ( eps_function(eps_) - Lambda(eps_) )**2 + ( Delta(eps_) + self.Delta0 ) **2 
+            numerator = Delta(eps_) + Delta0(eps_) 
+            denominator = ( eps_function(eps_) - Lambda(eps_) )**2 + ( Delta(eps_) + Delta0(eps_) ) **2 
             dos[i] = numerator / denominator / np.pi
         return dos
 
     def get_Delta_on_grid(self):
         """Get Delta on supplied grid."""
         Delta = self.create_Delta_reg
+        Delta0 = self.create_Delta0_reg
         self._convert_to_float()
         Delta_val = np.array([Delta(e) for e in self.eps])
+        Delta_val += np.array([Delta0(e) for e in self.eps])
         return Delta_val 
     
     def get_Lambda_on_grid(self):
@@ -217,21 +226,38 @@ class NewnsAndersonNumerical:
         self._convert_to_float()
         return eps_function(self.eps)
 
+    def get_dband_filling(self):
+        return self.calculate_filling()
+
     def create_reference_eps(self, eps):
         """Create the reference energy for finding Delta and Lambda."""
         return ( eps - self.eps_d ) / self.wd 
+
+    def create_Delta0_arb(self, eps):
+        """Create a function for Delta0 based on arb."""
+        if eps.real > self.eps_sp_min.real and eps.real < self.eps_sp_max.real:
+            return self.Delta0_mag
+        else:
+            return acb('0.0')
+    
+    def create_Delta0_reg(self, eps):
+        """Create a function for Delta0 based on regular python."""
+        if eps > self.eps_sp_min and eps < self.eps_sp_max:
+            return self.Delta0_mag
+        else:
+            return 0.0
 
     def create_Delta_arb(self, eps):
         """Create a function for Delta based on arb."""
         eps_ref = self.create_reference_eps(eps) 
         # If the absolute value of the reference is 
-        # lower than 1 (in the units of 2width) then
+        # lower than 1 (in the units of wd) then
         # the Delta will be non-zero 
-        if acb.abs_lower(eps_ref) < arb(1): 
+        if acb.abs_lower(eps_ref) < arb('1.0'): 
             Delta = acb(1.)  -  acb.pow(eps_ref, 2)
             Delta = acb.pow(Delta, 0.5)
             # Multiply by the prefactor
-            Delta *= acb.pi()**2 * self.Vak
+            Delta *= acb.pi() * self.Vak**2
             # Normalise the area
             Delta /= self.wd
             Delta *= acb(2)
@@ -245,13 +271,13 @@ class NewnsAndersonNumerical:
         """Create a function for Delta for regular manipulations."""
         eps_ref = self.create_reference_eps(eps) 
         # If the absolute value of the reference is 
-        # lower than 1 (in the units of 2width) then
+        # lower than 1 (in the units of wd) then
         # the Delta will be non-zero 
         if np.abs(eps_ref) < 1: 
             Delta = 1.  -  eps_ref**2
             Delta = Delta**0.5 
             # Multiply by the prefactor
-            Delta *= np.pi**2 * self.Vak
+            Delta *= np.pi * self.Vak**2
             # Normalise the area
             Delta /= self.wd
             Delta *= 2
@@ -268,20 +294,19 @@ class NewnsAndersonNumerical:
         if eps_ref.real < arb(-1): 
             # Below the lower edge of the d-band
             Lambda = eps_ref + acb.pow( eps_ref**2 - acb(1), 0.5 )
-            Lambda *= acb.pi()**2 * self.Vak
         elif eps_ref.real > arb(1):
             # Above the upper edge of the d-band
             Lambda = eps_ref - acb.pow( eps_ref**2 - acb(1), 0.5 )
-            Lambda *= acb.pi()**2 * self.Vak
         elif acb.abs_lower(eps_ref) <= arb(1): 
             # Inside the d-band
             Lambda = eps_ref
-            Lambda *= acb.pi()**2 * self.Vak
         else:
             raise ValueError(f'eps_ = {eps} cannot be considered in Lambda')
         # Same normalisation for Lambda as for Delta
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
+        Lambda *= self.Vak**2
+        Lambda *= acb.pi()
         Lambda /= self.wd
         Lambda *= acb(2)
         return Lambda
@@ -293,20 +318,19 @@ class NewnsAndersonNumerical:
         if eps_ref < -1: 
             # Below the lower edge of the d-band
             Lambda = eps_ref + ( eps_ref**2 - 1 )**0.5
-            Lambda *= np.pi**2 * self.Vak
         elif eps_ref > 1:
             # Above the upper edge of the d-band
             Lambda = eps_ref - ( eps_ref**2 - 1 )**0.5
-            Lambda *= np.pi**2 * self.Vak
         elif eps_ref <= 1: 
             # Inside the d-band
             Lambda = eps_ref
-            Lambda *= np.pi**2 * self.Vak
         else:
             raise ValueError(f'eps_ = {eps} cannot be considered in Lambda')
         # Same normalisation for Lambda as for Delta
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
+        Lambda *= self.Vak**2 
+        Lambda *= np.pi
         Lambda /= self.wd
         Lambda *= 2
         return Lambda
@@ -322,11 +346,11 @@ class NewnsAndersonNumerical:
             Lambda_prime = acb(1) - eps_ref * ( eps_ref**2 - acb(1) )**-0.5
         elif acb.abs_lower(eps_ref) <= arb(1):
             # Inside the d-band
-            Lambda_prime = 1
-        Lambda_prime *= self.Vak
-        Lambda_prime /= self.wd**2
-        Lambda_prime *= acb.pi()**2
+            Lambda_prime = acb(1)
+        Lambda_prime *= self.Vak**2
+        Lambda_prime *= acb.pi()
         Lambda_prime *= acb(2)
+        Lambda_prime /= self.wd**2
         return Lambda_prime
 
     def create_adsorbate_line(self, eps):
@@ -339,7 +363,7 @@ class NewnsAndersonNumerical:
         on to the integrator anyhow."""
         self.poles = []
         # In case Delta0 is not-zero, there will be no poles
-        if self.Delta0 > 0:
+        if self.Delta0_mag > 0:
             return
         # If Delta0 is zero, there will be two possible
         # poles, one on the left and one on the right
@@ -376,25 +400,37 @@ class NewnsAndersonNumerical:
         """Create the density of states."""
         eps_function = self.create_adsorbate_line
         Delta = self.create_Delta_arb
+        Delta0 = self.create_Delta0_arb
         Lambda = self.create_Lambda_arb
         # Create the density of states
-        numerator = Delta(eps) + self.Delta0
-        denominator = ( eps_function(eps) - Lambda(eps) )**2 + ( Delta(eps) + self.Delta0 ) **2 
+        numerator = Delta(eps) + Delta0(eps) 
+        denominator = ( eps_function(eps) - Lambda(eps) )**2 + ( Delta(eps) + Delta0(eps) )**2 
         return numerator / denominator / acb.pi()
+
+    def calculate_filling(self):
+        """Calculate the filling from the metal density of states."""
+        self._convert_to_float()
+        filling_numerator = integrate.quad(self.create_Delta_reg, 
+                            self.eps_min, 0,
+                            limit=100)[0]
+        filling_denominator = integrate.quad(self.create_Delta_reg,
+                            self.eps_min, self.eps_max,
+                            limit=100)[0]
+        return filling_numerator / filling_denominator
 
     def calculate_occupancy(self):
         """Calculate the density of states from the Newns-Anderson model."""
         # If a dos is required, then switch to arb
-        if self.Delta0 == 0:
+        if self.Delta0_mag == 0:
             # Determine the points of the singularity
             self.find_poles_green_function(self.eps_a)
             self._convert_to_acb()
-            localised_occupancy = acb(0.0)
+            localised_occupancy = acb('0.0')
             for pole in self.poles:
-                if pole.real < arb(0.0):
+                if pole.real < arb('0.0'):
                     Lambda_prime = self.create_Lambda_prime_arb(pole)
                     assert Lambda_prime.real < arb(0.0)
-                    localised_occupancy += acb(1) / (acb(1) - Lambda_prime)
+                    localised_occupancy += acb('1.0') / (acb('1.0') - Lambda_prime)
             # # Add in the integral for the states within the Delta function
             lower_integration_bound = min(0.0, float((self.eps_d - self.wd).real) )
             upper_integration_bound = min(0.0, float((self.eps_d + self.wd).real) )
@@ -405,7 +441,7 @@ class NewnsAndersonNumerical:
         else:
             self._convert_to_acb()
             # Numerically integrate the dos to find the occupancy
-            self.na = acb.integral(lambda x, _: self.create_dos(x), self.eps_min, arb(0))
+            self.na = acb.integral(lambda x, _: self.create_dos(x), self.eps_min, arb('0.0'))
 
         print(f'Single particle occupancy: {self.na}')
 
@@ -413,10 +449,11 @@ class NewnsAndersonNumerical:
         """Create the energy integrand of the system."""
         eps_function = self.create_adsorbate_line
         Delta = self.create_Delta_reg
+        Delta0 = self.create_Delta0_reg
         Lambda = self.create_Lambda_reg
 
         # Determine the energy of the system
-        numerator = Delta(eps) + self.Delta0
+        numerator = Delta(eps) + Delta0(eps) 
         denominator = eps_function(eps) - Lambda(eps)
 
         # find where self.eps is lower than 0
@@ -434,7 +471,7 @@ class NewnsAndersonNumerical:
         eps_function = self.create_adsorbate_line
 
         # Determine the energy of the system
-        numerator = self.Delta0
+        numerator = self.create_Delta0_reg(eps) 
         denominator = eps_function(eps) # Lambda for a constant is 0.
 
         if eps > 0:
@@ -462,6 +499,7 @@ class NewnsAndersonNumerical:
         # delta_E_ += delta_E0_
         self.DeltaE = delta_E_ * 2 / np.pi 
         self.DeltaE -= 2 * self.eps_a
+
         print(f'Energy of the system: {self.DeltaE} eV')
 
 @dataclass
