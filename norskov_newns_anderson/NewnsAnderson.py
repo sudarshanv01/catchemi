@@ -45,7 +45,7 @@ class NorskovNewnsAnderson:
         beta = abs(beta)
         # All the parameters here will have positive values
         # Vak assumed to be proportional to Vsd
-        Vak = beta * self.Vsd
+        Vak = np.sqrt(beta) * self.Vsd
 
         # Store the hybridisation energy for all metals to compare later
         spd_hybridisation_energy = np.zeros(len(eps_ds))
