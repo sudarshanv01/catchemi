@@ -24,20 +24,17 @@ class NorskovNewnsAnderson:
     energies.
     """
     Vsd: list
-    # filling: list
     width: list
+    eps: list
     eps_a: float
-    eps_min: float = -15
-    eps_max: float = 15
-    Delta0: float = 2.
+    eps_sp_min: float = -15
+    eps_sp_max: float = 15
+    Delta0_mag:float = 0.0
 
     def __post_init__(self):
         """Extra variables that are needed for the model."""
-        assert self.eps_min < self.eps_max, "eps_min must be smaller than eps_max"
-        self.eps = np.linspace(self.eps_min, self.eps_max, 1000)
         # convert all lists to numpy arrays
         self.Vsd = np.array(self.Vsd)
-        # self.filling = np.array(self.filling)
         self.width = np.array(self.width)
 
     def fit_parameters(self, parameters, eps_ds):
@@ -48,7 +45,7 @@ class NorskovNewnsAnderson:
         beta = abs(beta)
         # All the parameters here will have positive values
         # Vak assumed to be proportional to Vsd
-        Vak = np.sqrt(beta) * self.Vsd
+        Vak = beta * self.Vsd
 
         # Store the hybridisation energy for all metals to compare later
         spd_hybridisation_energy = np.zeros(len(eps_ds))
@@ -65,7 +62,9 @@ class NorskovNewnsAnderson:
                 eps_d = eps_d,
                 width = self.width[i],
                 eps = self.eps,
-                Delta0 = self.Delta0,
+                eps_sp_max=self.eps_sp_max,
+                eps_sp_min=self.eps_sp_min,
+                Delta0_mag = self.Delta0_mag,
             )
 
             # The first component of the hybridisation energy
@@ -84,7 +83,7 @@ class NorskovNewnsAnderson:
         self.spd_hybridisation_energy = spd_hybridisation_energy
 
         # orthonogonalisation energy
-        ortho_energy = 2 * ( na +  self.filling ) * alpha * np.sqrt(beta) * self.Vsd**2
+        ortho_energy = 2 * ( na +  self.filling ) * alpha * beta * self.Vsd**2
         ortho_energy = np.array(ortho_energy)
 
         # Ensure that the orthonogonalisation energy is positive always
@@ -142,9 +141,11 @@ class NewnsAndersonNumerical:
     eps_d: float
     eps: list 
     Delta0_mag: float
-    eps_sp_max: float
-    eps_sp_min: float
+    eps_sp_max: float = 15
+    eps_sp_min: float = -15
     precision: int = 50
+    verbose: bool = False
+    NUMERICAL_NOISE_THRESHOLD = 1e-2
 
     def __post_init__(self):
         """Perform numerical calculations of the Newns-Anderson model 
@@ -153,7 +154,8 @@ class NewnsAndersonNumerical:
         self.eps_max = np.max(self.eps) 
         self.wd = self.width / 2
         self.eps = np.array(self.eps)
-        print(f'Solving the Newns-Anderson model for eps_a = {self.eps_a} eV and eps_d = {self.eps_d}')
+        if self.verbose:
+            print(f'Solving the Newns-Anderson model for eps_a = {self.eps_a:1.2f} eV and eps_d = {self.eps_d:1.2f} and a width = {self.width:1.2f}')
 
         # Choose the precision to which the quantities are calculated
         ctx.dps = self.precision
@@ -394,7 +396,8 @@ class NewnsAndersonNumerical:
             self.poles.append(pole_higher)
         except ValueError:
             pass
-        print(f'Poles of the green function:{self.poles}')
+        if self.verbose:
+            print(f'Poles of the green function:{self.poles}')
 
     def create_dos(self, eps):
         """Create the density of states."""
@@ -429,7 +432,7 @@ class NewnsAndersonNumerical:
             for pole in self.poles:
                 if pole.real < arb('0.0'):
                     Lambda_prime = self.create_Lambda_prime_arb(pole)
-                    assert Lambda_prime.real < arb(0.0)
+                    assert Lambda_prime.real <= arb(0.0)
                     localised_occupancy += acb('1.0') / (acb('1.0') - Lambda_prime)
             # # Add in the integral for the states within the Delta function
             lower_integration_bound = min(0.0, float((self.eps_d - self.wd).real) )
@@ -442,8 +445,8 @@ class NewnsAndersonNumerical:
             self._convert_to_acb()
             # Numerically integrate the dos to find the occupancy
             self.na = acb.integral(lambda x, _: self.create_dos(x), self.eps_min, arb('0.0'))
-
-        print(f'Single particle occupancy: {self.na}')
+        if self.verbose:
+            print(f'Single particle occupancy: {self.na}')
 
     def create_energy_integrand(self, eps):
         """Create the energy integrand of the system."""
@@ -499,8 +502,12 @@ class NewnsAndersonNumerical:
         # delta_E_ += delta_E0_
         self.DeltaE = delta_E_ * 2 / np.pi 
         self.DeltaE -= 2 * self.eps_a
+        # Check if DeltaE is positive and within the NUMERICAL_NOISE_THRESHOLD
+        if self.DeltaE > 0 and self.DeltaE < self.NUMERICAL_NOISE_THRESHOLD:
+            self.DeltaE = 0
 
-        print(f'Energy of the system: {self.DeltaE} eV')
+        if self.verbose:
+            print(f'Energy of the system: {self.DeltaE} eV')
 
 @dataclass
 class NewnsAndersonAnalytical:
