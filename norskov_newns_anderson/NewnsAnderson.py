@@ -23,35 +23,31 @@ class NorskovNewnsAnderson:
     energy. The fitting is done by minimizing the sum of squares of the
     energies.
     """
-    Vsd: list
     width: list
     eps: list
     eps_a: float
     eps_sp_min: float = -15
     eps_sp_max: float = 15
-    Delta0_mag:float = 0.0
+    Delta0_mag: float = 0.0
+    alpha: float = 0.075
+    precision: int = 50
 
     def __post_init__(self):
         """Extra variables that are needed for the model."""
         # convert all lists to numpy arrays
-        self.Vsd = np.array(self.Vsd)
         self.width = np.array(self.width)
 
-    def fit_parameters(self, parameters, eps_ds):
+    def fit_parameters(self, args, eps_ds):
         """Fit the parameters alpha, beta"""
         # Always use the absolute value 
-        alpha, beta, fixed_constant = parameters
-        alpha = abs(alpha)
-        beta = abs(beta)
-        # All the parameters here will have positive values
-        # Vak assumed to be proportional to Vsd
-        Vak = np.sqrt(beta) * self.Vsd
+        Vak = args
+        Vak = np.abs(Vak)
 
         # Store the hybridisation energy for all metals to compare later
         spd_hybridisation_energy = np.zeros(len(eps_ds))
 
         # We will need the occupancy of the single particle state
-        na = np.zeros(len(eps_ds))
+        self.na = np.zeros(len(eps_ds))
         self.filling = np.zeros(len(eps_ds))
 
         # Loop over all the metals
@@ -65,8 +61,9 @@ class NorskovNewnsAnderson:
                 eps_sp_max=self.eps_sp_max,
                 eps_sp_min=self.eps_sp_min,
                 Delta0_mag = self.Delta0_mag,
+                precision=self.precision,
+                verbose=False,
             )
-
             # The first component of the hybridisation energy
             # is the hybdridisation coming from the sp and d bands
             hybridisation.calculate_energy()
@@ -74,7 +71,7 @@ class NorskovNewnsAnderson:
             # Get and store the occupancy because it will be needed
             # for the orthogonalisation energy term
             hybridisation.calculate_occupancy()
-            na[i] = hybridisation.get_occupancy()
+            self.na[i] = hybridisation.get_occupancy()
             self.filling[i] = hybridisation.get_dband_filling()
 
         # Ensure that the hybridisation energy is negative always
@@ -83,7 +80,7 @@ class NorskovNewnsAnderson:
         self.spd_hybridisation_energy = spd_hybridisation_energy
 
         # orthonogonalisation energy
-        ortho_energy = 2 * ( na +  self.filling ) * alpha * beta * self.Vsd**2
+        ortho_energy = 2 * ( self.na +  self.filling ) * self.alpha * Vak**2
         ortho_energy = np.array(ortho_energy)
 
         # Ensure that the orthonogonalisation energy is positive always
@@ -92,18 +89,12 @@ class NorskovNewnsAnderson:
         # Add the orthogonalisation energy to the hybridisation energy
         hybridisation_energy = spd_hybridisation_energy + ortho_energy
 
-        # Add the fixed constant to the hybridisation energy
-        hybridisation_energy += fixed_constant
-
         # Store the hybridisation energy for all metals
         self.hybridisation_energy = hybridisation_energy
 
-        # Store the occupancies as well
-        self.na = na
-
         # Store the orthogonalisation energy for all metals
         self.ortho_energy = ortho_energy
-        
+
         return hybridisation_energy
 
 @dataclass
@@ -413,12 +404,22 @@ class NewnsAndersonNumerical:
     def calculate_filling(self):
         """Calculate the filling from the metal density of states."""
         self._convert_to_float()
+        # Filling contribution coming from the d-states
         filling_numerator = integrate.quad(self.create_Delta_reg, 
                             self.eps_min, 0,
                             limit=100)[0]
+        # Filling contribution coming from the sp-states
+        filling_numerator += integrate.quad(self.create_Delta0_reg,
+                             self.eps_min, 0,
+                             limit=100)[0]
+        # Filling contribution to the denomitor coming from the d-states 
         filling_denominator = integrate.quad(self.create_Delta_reg,
                             self.eps_min, self.eps_max,
                             limit=100)[0]
+        # Filling contribution to the denomitor coming from the sp-states
+        filling_denominator += integrate.quad(self.create_Delta0_reg,
+                                self.eps_min, self.eps_max,
+                                limit=100)[0]
         return filling_numerator / filling_denominator
 
     def calculate_occupancy(self):
