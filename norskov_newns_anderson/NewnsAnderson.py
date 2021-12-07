@@ -26,25 +26,31 @@ class NorskovNewnsAnderson:
     width: list
     eps: list
     eps_a: float
+    Vsd: list
     eps_sp_min: float = -15
     eps_sp_max: float = 15
     Delta0_mag: float = 0.0
-    alpha: float = 0.075
     precision: int = 50
 
     def __post_init__(self):
         """Extra variables that are needed for the model."""
         # convert all lists to numpy arrays
         self.width = np.array(self.width)
+        self.Vsd = np.array(self.Vsd)
 
     def fit_parameters(self, args, eps_ds):
         """Fit the parameters alpha, beta"""
-        # Always use the absolute value 
-        Vak = args
-        Vak = np.abs(Vak)
+        alpha, beta, constant_offset = args
+        # Make sure that all the quantities are positive
+        alpha = abs(alpha)
+        beta = abs(beta)
+        # Constant offset can be any sign
 
         # Store the hybridisation energy for all metals to compare later
         spd_hybridisation_energy = np.zeros(len(eps_ds))
+
+        # Generate Vak based on the provided beta
+        Vak = np.sqrt(beta) * self.Vsd 
 
         # We will need the occupancy of the single particle state
         self.na = np.zeros(len(eps_ds))
@@ -80,20 +86,24 @@ class NorskovNewnsAnderson:
         self.spd_hybridisation_energy = spd_hybridisation_energy
 
         # orthonogonalisation energy
-        ortho_energy = 2 * ( self.na +  self.filling ) * self.alpha * Vak**2
+        ortho_energy = 2 * ( self.na +  self.filling ) * alpha * Vak**2
         ortho_energy = np.array(ortho_energy)
 
         # Ensure that the orthonogonalisation energy is positive always
         assert all(ortho_energy >= 0), "Orthogonalisation energy is positive now it is (%1.2f)"%(ortho_energy)
 
         # Add the orthogonalisation energy to the hybridisation energy
-        hybridisation_energy = spd_hybridisation_energy + ortho_energy
+        hybridisation_energy = spd_hybridisation_energy + ortho_energy + constant_offset
+
+        # Store the orthogonalisation energy for all metals
+        self.ortho_energy = ortho_energy
 
         # Store the hybridisation energy for all metals
         self.hybridisation_energy = hybridisation_energy
 
-        # Store the orthogonalisation energy for all metals
-        self.ortho_energy = ortho_energy
+        # print('Return list:')
+        # print(alpha, beta, constant_offset)
+        # print(hybridisation_energy)
 
         return hybridisation_energy
 
@@ -445,7 +455,10 @@ class NewnsAndersonNumerical:
         else:
             self._convert_to_acb()
             # Numerically integrate the dos to find the occupancy
-            self.na = acb.integral(lambda x, _: self.create_dos(x), self.eps_min, arb('0.0'))
+            self.na = acb.integral(lambda x, _: self.create_dos(x), 
+                                                self.eps_min, 
+                                                arb('0.0'), 
+                                                rel_tol=np.power(2, -self.precision/3))
         if self.verbose:
             print(f'Single particle occupancy: {self.na}')
 
