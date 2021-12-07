@@ -101,9 +101,9 @@ class NorskovNewnsAnderson:
         # Store the hybridisation energy for all metals
         self.hybridisation_energy = hybridisation_energy
 
-        # print('Return list:')
-        # print(alpha, beta, constant_offset)
-        # print(hybridisation_energy)
+        print('Return list:')
+        print(alpha, beta, constant_offset)
+        print(hybridisation_energy)
 
         return hybridisation_energy
 
@@ -458,7 +458,7 @@ class NewnsAndersonNumerical:
             self.na = acb.integral(lambda x, _: self.create_dos(x), 
                                                 self.eps_min, 
                                                 arb('0.0'), 
-                                                rel_tol=np.power(2, -self.precision/3))
+                                                rel_tol=np.power(2, -self.precision/2))
         if self.verbose:
             print(f'Single particle occupancy: {self.na}')
 
