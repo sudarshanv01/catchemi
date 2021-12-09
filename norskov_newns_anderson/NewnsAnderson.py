@@ -260,7 +260,8 @@ class NewnsAndersonNumerical:
             Delta = acb(1.)  -  acb.pow(eps_ref, 2)
             Delta = acb.pow(Delta, 0.5)
             # Multiply by the prefactor
-            Delta *= acb.pi() * self.Vak**2
+            Delta *= self.Vak**2
+            Delta *= acb.pi()
             # Normalise the area
             Delta /= self.wd
             Delta *= acb(2)
@@ -280,7 +281,8 @@ class NewnsAndersonNumerical:
             Delta = 1.  -  eps_ref**2
             Delta = Delta**0.5 
             # Multiply by the prefactor
-            Delta *= np.pi * self.Vak**2
+            Delta *= self.Vak**2
+            Delta *= np.pi
             # Normalise the area
             Delta /= self.wd
             Delta *= 2
