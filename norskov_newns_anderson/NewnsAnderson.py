@@ -261,7 +261,7 @@ class NewnsAndersonNumerical:
             Delta = acb.pow(Delta, 0.5)
             # Multiply by the prefactor
             Delta *= self.Vak**2
-            Delta *= acb.pi()
+            # Delta *= acb.pi()
             # Normalise the area
             Delta /= self.wd
             Delta *= acb(2)
@@ -282,7 +282,7 @@ class NewnsAndersonNumerical:
             Delta = Delta**0.5 
             # Multiply by the prefactor
             Delta *= self.Vak**2
-            Delta *= np.pi
+            # Delta *= np.pi
             # Normalise the area
             Delta /= self.wd
             Delta *= 2
@@ -311,7 +311,7 @@ class NewnsAndersonNumerical:
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
         Lambda *= self.Vak**2
-        Lambda *= acb.pi()
+        # Lambda *= acb.pi()
         Lambda /= self.wd
         Lambda *= acb(2)
         return Lambda
@@ -335,7 +335,7 @@ class NewnsAndersonNumerical:
         # These are prefactors of Delta that have been multiplied
         # with Delta to ensure that the area is set to Vak^2
         Lambda *= self.Vak**2 
-        Lambda *= np.pi
+        # Lambda *= np.pi
         Lambda /= self.wd
         Lambda *= 2
         return Lambda
@@ -353,7 +353,7 @@ class NewnsAndersonNumerical:
             # Inside the d-band
             Lambda_prime = acb(1)
         Lambda_prime *= self.Vak**2
-        Lambda_prime *= acb.pi()
+        # Lambda_prime *= acb.pi()
         Lambda_prime *= acb(2)
         Lambda_prime /= self.wd**2
         return Lambda_prime
@@ -362,7 +362,7 @@ class NewnsAndersonNumerical:
         """Create the line that the adsorbate passes through."""
         return eps - self.eps_a
 
-    def find_poles_green_function(self, eps):
+    def find_poles_green_function(self):
         """Find the poles of the green function. In the case that Delta=0
         these points will not be the poles, but are important to pass 
         on to the integrator anyhow."""
@@ -385,20 +385,34 @@ class NewnsAndersonNumerical:
         # 3. Region below eps_d - wd
         # If the optimizer excepts, then there is no intersection 
         # within that sub-region
+
+        # Find the poles in the energy region that is below the d-band
         try:
             pole_lower = optimize.brentq(lambda x: eps_function(x) - Lambda(x), 
                                          self.eps_min,
                                          self.eps_d - self.wd,)
             self.poles.append(pole_lower)
         except ValueError:
-            pass
+            self.poles.append(None)
+
+        # Find the pole in the middle of the d-band, if any
+        try:
+            pole_middle = optimize.brentq(lambda x: eps_function(x) - Lambda(x),
+                                          self.eps_d - self.wd,
+                                          self.eps_d + self.wd)
+            self.poles.append(pole_middle)
+        except ValueError:
+            self.poles.append(None)
+
+        # Find the poles in the energy region that is above the d-band
         try:
             pole_higher = optimize.brentq(lambda x: eps_function(x) - Lambda(x),
                                           self.eps_d + self.wd,
                                           self.eps_max )
             self.poles.append(pole_higher)
         except ValueError:
-            pass
+            self.poles.append(None)
+
         if self.verbose:
             print(f'Poles of the green function:{self.poles}')
 
@@ -439,7 +453,7 @@ class NewnsAndersonNumerical:
         # If a dos is required, then switch to arb
         if self.Delta0_mag == 0:
             # Determine the points of the singularity
-            self.find_poles_green_function(self.eps_a)
+            self.find_poles_green_function()
             self._convert_to_acb()
             localised_occupancy = acb('0.0')
             for pole in self.poles:
@@ -507,10 +521,11 @@ class NewnsAndersonNumerical:
         """Calculate the energy from the Newns-Anderson model."""
         # We do not need multi-precision for this calculation
         self._convert_to_float()
-        self.find_poles_green_function(self.eps)
+        self.find_poles_green_function()
+        poles_to_consider = [pole for pole in self.poles if pole is not None]
         delta_E_ = integrate.quad(self.create_energy_integrand, 
                             self.eps_min, 0,
-                            points = (self.poles),
+                            points = tuple(poles_to_consider),
                             limit=100)[0]
         # delta_E0_ = integrate.quad(self.create_sp_integrand,
         #                     self.eps_min, 0,
