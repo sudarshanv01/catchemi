@@ -16,12 +16,6 @@ class NorskovNewnsAnderson:
     d-band model with calculations performed with DFT. The class 
     expects all metal quantities for a particular eps_a (adsorbate) value.
     
-    Strategy
-    --------
-    Fit the energies to the d-band centre based on the fitting 
-    expression including the newns-anderson model and the orthogonalisation
-    energy. The fitting is done by minimizing the sum of squares of the
-    energies.
     """
     width: list
     eps: list
@@ -112,6 +106,7 @@ class NorskovNewnsAnderson:
 class NewnsAndersonNumerical:
     """Perform numerical calculations of the Newns-Anderson model to get 
     the chemisorption energy.
+
     Vak: float
         Coupling matrix element
     eps_a: float
@@ -125,16 +120,6 @@ class NewnsAndersonNumerical:
     k: float
         Parameter to control the amount of added extra states
     
-    Strategy:
-    --------
-    The occupancy is calculated using the arb package. This choice
-    provides the needed precision for the calculation, as well as an
-    estimate of the rounding errors, which are useful for the fitting
-    procedure later on. In case Delta0=0, then there is a pole to the 
-    dos function, and that is taken care of by using the analytical
-    derivative of the Hilbert transform of Delta.
-    The hybridisation energy has less strict requirements on its precision,
-    and hence is solved using scipy libraries.
     """
 
     Vak: float

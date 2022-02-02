@@ -10,9 +10,8 @@ import mpmath as mp
 
 @dataclass
 class NewnsAndersonAnalytical:
-    """ Perform the Newns-Anderson model analytically for a semi-elliplical delta.
-        Inputs 
-        ------
+    """Perform the Newns-Anderson model analytically for a semi-elliplical delta.
+
         eps_a: float
             renormalised energy of the adsorbate in units of eV wrt Fermi level
         beta_p: float
