@@ -1,0 +1,4 @@
+# Newns-Anderson equations implementations
+from catchemi.NewnsAndersonAnalytical import NewnsAndersonAnalytical
+from catchemi.NewnsAndersonNumerical import NewnsAndersonNumerical
+from catchemi.NewnsAndersonLinearRepulsion import NewnsAndersonLinearRepulsion
