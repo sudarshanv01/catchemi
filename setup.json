@@ -8,7 +8,7 @@
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9"
     ],
-    "description": "Parses the aimd trajectories and puts them into an ASE database.",
+    "description": "Implementation of the Newns-Anderson equations along with an effective repulsive contribution.",
     "python_requires": ">=3.8",
     "install_requires": [
         "numpy",
@@ -21,6 +21,6 @@
         "python-flint"
     ],
     "license": "MIT License",
-    "name": "norskov_newns_anderson",
+    "name": "catchemi",
     "version": "0.0.01"
 }
