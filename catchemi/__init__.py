@@ -2,3 +2,5 @@
 from catchemi.NewnsAndersonAnalytical import NewnsAndersonAnalytical
 from catchemi.NewnsAndersonNumerical import NewnsAndersonNumerical
 from catchemi.NewnsAndersonLinearRepulsion import NewnsAndersonLinearRepulsion
+from catchemi.NewnsAndersonLinearRepulsion import FitParametersNewnsAnderson
+from catchemi.NewnsAndersonDerivatives import NewnsAndersonDerivativeEpsd

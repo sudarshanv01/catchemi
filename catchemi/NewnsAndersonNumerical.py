@@ -13,27 +13,12 @@ from flint import acb, arb, ctx
 @dataclass
 class NewnsAndersonNumerical:
     """Perform numerical calculations of the Newns-Anderson model to get 
-    the chemisorption energy.
-
-    Vak: float
-        Coupling matrix element
-    eps_a: float
-        Energy of the adsorbate
-    eps_d: float
-        Energy of the d-band
-    eps: list
-        Energy range to consider
-    width: float
-        Width of the d-band
-    k: float
-        Parameter to control the amount of added extra states
-    
-    """
+    the chemisorption energy."""
 
     Vak: float
     eps_a: float
-    width: float
     eps_d: float
+    width: float
     eps: list 
     Delta0_mag: float
     eps_sp_max: float = 15
@@ -49,16 +34,31 @@ class NewnsAndersonNumerical:
         self.eps_max = np.max(self.eps) 
         self.wd = self.width / 2
         self.eps = np.array(self.eps)
+
         if self.verbose:
-            print(f'Solving the Newns-Anderson model for eps_a = {self.eps_a:1.2f} eV and eps_d = {self.eps_d:1.2f} and a width = {self.width:1.2f}')
+            print(f'Solving the Newns-Anderson model for eps_a = {self.eps_a:1.2f} eV',
+                  f'and eps_d = {self.eps_d:1.2f} and w_d = {self.width:1.2f}')
 
         # Choose the precision to which the quantities are calculated
         ctx.dps = self.precision
+
+        # The outputs from the model are the hybridisation
+        # energy and the occupancy of the single particle state
+        self.hybridisation_energy = None
+        self.occupancy = None
         
-    def _convert_to_acb(self):
+        # Everything start as a float
+        self.calctype = 'float'
+        
+    def _convert_to_acb(self, *args) -> None:
         """Convert the important quantities to arb so 
         that they can be manipulated freely."""
+        # Convert all quantities that are args to acb
         convert_to_acb = lambda x: acb(str(x))
+        args = [convert_to_acb(arg) for arg in args]
+        if self.calctype == 'multiprecision':
+            # Everything is already a multiprecision number
+            return args 
         self.eps_min = convert_to_acb(self.eps_min)
         self.eps_max = convert_to_acb(self.eps_max)
         self.eps_sp_min = convert_to_acb(self.eps_sp_min)
@@ -67,9 +67,16 @@ class NewnsAndersonNumerical:
         self.eps_d = convert_to_acb(self.eps_d)
         self.eps_a = convert_to_acb(self.eps_a)
         self.Vak = convert_to_acb(self.Vak)
+        self.calctype = 'multiprecision'
+        return args
     
-    def _convert_to_float(self):
+    def _convert_to_float(self, *args) -> None:
         """Convert the important quantities to a float."""
+        # Convert all quantities that args to float
+        args = [float(arg) for arg in args]
+        if self.calctype == 'float':
+            # everything is already a float
+            return args
         self.eps_min = float(self.eps_min.real)
         self.eps_max = float(self.eps_max.real)
         self.eps_sp_min = float(self.eps_sp_min.real)
@@ -78,21 +85,27 @@ class NewnsAndersonNumerical:
         self.eps_d = float(self.eps_d.real)
         self.eps_a = float(self.eps_a.real)
         self.Vak = float(self.Vak.real)
+        self.calctype = 'float'
+        return args
 
-    def get_energy(self) -> float:
+    def get_hybridisation_energy(self) -> float:
         """Get the hybridisation energy."""
-        return self.DeltaE
+        if self.hybridisation_energy is None:
+            self.calculate_hybridisation_energy()
+        return self.hybridisation_energy
 
     def get_occupancy(self) -> float:
         """Get the occupancy of the single particle state."""
-        return float(self.na.real)
+        if self.occupancy is None:
+            self.calculate_occupancy()
+        return float(self.occupancy.real)
     
     def get_dos_on_grid(self) -> np.ndarray:
         """Get the density of states."""
-        eps_function = self.create_adsorbate_line
-        Delta = self.create_Delta_reg
-        Delta0 = self.create_Delta0_reg
-        Lambda = self.create_Lambda_reg
+        eps_function = self._create_adsorbate_line
+        Delta = self._create_Delta_reg
+        Delta0 = self._create_Delta0_reg
+        Lambda = self._create_Lambda_reg
         self._convert_to_float()
         dos = np.zeros(len(self.eps))
         for i, eps_ in enumerate(self.eps):
@@ -103,34 +116,36 @@ class NewnsAndersonNumerical:
 
     def get_Delta_on_grid(self) -> np.ndarray:
         """Get Delta on supplied grid."""
-        Delta = self.create_Delta_reg
-        Delta0 = self.create_Delta0_reg
+        Delta = self._create_Delta_reg
+        Delta0 = self._create_Delta0_reg
         self._convert_to_float()
         Delta_val = np.array([Delta(e) for e in self.eps])
         Delta_val += np.array([Delta0(e) for e in self.eps])
         return Delta_val 
     
-    def get_Lambda_on_grid(self):
+    def get_Lambda_on_grid(self) -> np.ndarray:
         """Get Lambda on supplied grid."""
-        Lambda = self.create_Lambda_reg
+        Lambda = self._create_Lambda_reg
         self._convert_to_float()
         Lambda_val = np.array([Lambda(e) for e in self.eps])
         return Lambda_val 
     
-    def get_energy_diff_on_grid(self):
+    def get_energy_diff_on_grid(self) -> np.ndarray:
         """Get the line eps - eps_a on a grid."""
-        eps_function = self.create_adsorbate_line
+        eps_function = self._create_adsorbate_line
         self._convert_to_float()
         return eps_function(self.eps)
 
     def get_dband_filling(self):
-        return self.calculate_filling()
+        """Get the filling of the d-band."""
+        self._calculate_filling()
+        return self.filling.real 
 
     def create_reference_eps(self, eps):
         """Create the reference energy for finding Delta and Lambda."""
         return ( eps - self.eps_d ) / self.wd 
 
-    def create_Delta0_arb(self, eps) -> acb:
+    def _create_Delta0_arb(self, eps) -> acb:
         """Create a function for Delta0 based on arb."""
         # The function creates Delta0 is if it between eps_sp max 
         # and eps_sp min, otherwise it is zero.
@@ -139,14 +154,14 @@ class NewnsAndersonNumerical:
         else:
             return acb('0.0')
     
-    def create_Delta0_reg(self, eps) -> float:
+    def _create_Delta0_reg(self, eps) -> float:
         """Create a function for Delta0 based on regular python."""
         if eps > self.eps_sp_min and eps < self.eps_sp_max:
             return self.Delta0_mag
         else:
             return 0.0
 
-    def create_Delta_arb(self, eps) -> acb:
+    def _create_Delta_arb(self, eps) -> acb:
         """Create a function for Delta based on arb."""
         eps_ref = self.create_reference_eps(eps) 
         # If the absolute value of the reference is 
@@ -166,7 +181,7 @@ class NewnsAndersonNumerical:
             Delta = acb(0.0)
         return Delta
 
-    def create_Delta_reg(self, eps) -> float:
+    def _create_Delta_reg(self, eps) -> float:
         """Create a function for Delta for regular manipulations."""
         eps_ref = self.create_reference_eps(eps) 
         # If the absolute value of the reference is 
@@ -186,7 +201,7 @@ class NewnsAndersonNumerical:
             Delta = 0.0 
         return Delta
 
-    def create_Lambda_arb(self, eps) -> acb:
+    def _create_Lambda_arb(self, eps) -> acb:
         """Create the hilbert transform of Delta with arb."""
         eps_ref = self.create_reference_eps(eps)
 
@@ -210,7 +225,7 @@ class NewnsAndersonNumerical:
         Lambda *= acb(2)
         return Lambda
 
-    def create_Lambda_reg(self, eps) -> float:
+    def _create_Lambda_reg(self, eps) -> float:
         """Create the hilbert transform of Delta for regular manipulations."""
         eps_ref = self.create_reference_eps(eps)
 
@@ -234,7 +249,7 @@ class NewnsAndersonNumerical:
         Lambda *= 2
         return Lambda
 
-    def create_Lambda_prime_arb(self, eps) -> acb:
+    def _create_Lambda_prime_arb(self, eps) -> acb:
         """Create the derivative of the hilbert transform of Lambda with arb."""
         eps_ref = self.create_reference_eps(eps)
         if eps_ref.real < arb(-1):
@@ -252,11 +267,11 @@ class NewnsAndersonNumerical:
         Lambda_prime /= self.wd**2
         return Lambda_prime
 
-    def create_adsorbate_line(self, eps):
+    def _create_adsorbate_line(self, eps):
         """Create the line that the adsorbate passes through."""
         return eps - self.eps_a
 
-    def find_poles_green_function(self):
+    def find_poles_green_function(self) -> list:
         """Find the poles of the green function. In the case that Delta=0
         these points will not be the poles, but are important to pass 
         on to the integrator anyhow."""
@@ -271,8 +286,8 @@ class NewnsAndersonNumerical:
         # one within Delta. 
         # determine where they are based on the intersection
         # between eps - eps_a - Lambda = 0
-        eps_function = self.create_adsorbate_line
-        Lambda = self.create_Lambda_reg
+        eps_function = self._create_adsorbate_line
+        Lambda = self._create_Lambda_reg
 
         # Find the epsilon value as which the Lambda and eps_function are equal
         # These poles will have to be explicitly mentioned during the integration
@@ -312,37 +327,40 @@ class NewnsAndersonNumerical:
 
         if self.verbose:
             print(f'Poles of the green function:{self.poles}')
+        
+        return self.poles
 
-    def create_dos(self, eps) -> acb:
+    def _create_dos(self, eps) -> acb:
         """Create the density of states."""
-        eps_function = self.create_adsorbate_line
-        Delta = self.create_Delta_arb
-        Delta0 = self.create_Delta0_arb
-        Lambda = self.create_Lambda_arb
+        eps_function = self._create_adsorbate_line
+        Delta = self._create_Delta_arb
+        Delta0 = self._create_Delta0_arb
+        Lambda = self._create_Lambda_arb
         # Create the density of states
         numerator = Delta(eps) + Delta0(eps) 
         denominator = ( eps_function(eps) - Lambda(eps) )**2 + ( Delta(eps) + Delta0(eps) )**2 
         return numerator / denominator / acb.pi()
 
-    def calculate_filling(self) -> float:
+    def _calculate_filling(self) -> float:
         """Calculate the filling from the metal density of states."""
         self._convert_to_float()
         # Filling contribution coming from the d-states
-        filling_numerator = integrate.quad(self.create_Delta_reg, 
+        filling_numerator = integrate.quad(self._create_Delta_reg, 
                             self.eps_min, 0,
                             limit=100)[0]
         # Filling contribution coming from the sp-states
-        filling_numerator += integrate.quad(self.create_Delta0_reg,
+        filling_numerator += integrate.quad(self._create_Delta0_reg,
                              self.eps_min, 0,
                              limit=100)[0]
         # Filling contribution to the denomitor coming from the d-states 
-        filling_denominator = integrate.quad(self.create_Delta_reg,
+        filling_denominator = integrate.quad(self._create_Delta_reg,
                             self.eps_min, self.eps_max,
                             limit=100)[0]
         # Filling contribution to the denomitor coming from the sp-states
-        filling_denominator += integrate.quad(self.create_Delta0_reg,
+        filling_denominator += integrate.quad(self._create_Delta0_reg,
                                 self.eps_min, self.eps_max,
                                 limit=100)[0]
+        self.filling = filling_numerator / filling_denominator
         return filling_numerator / filling_denominator
 
     def calculate_occupancy(self):
@@ -365,34 +383,34 @@ class NewnsAndersonNumerical:
                                 # Consider for now only the localised
                                 # states, that is, the poles that
                                 # are the energy where Delta(eps) = 0
-                                Lambda_prime = self.create_Lambda_prime_arb(pole)
+                                Lambda_prime = self._create_Lambda_prime_arb(pole)
                                 assert Lambda_prime.real <= arb(0.0)
                                 localised_occupancy += acb('1.0') / (acb('1.0') - Lambda_prime)
 
             # # Add in the integral for the states within the Delta function
             lower_integration_bound = min(0.0, float((self.eps_d - self.wd).real) )
             upper_integration_bound = min(0.0, float((self.eps_d + self.wd).real) )
-            self.na = acb.integral(lambda x, _: self.create_dos(x),
+            self.occupancy = acb.integral(lambda x, _: self._create_dos(x),
                                                 lower_integration_bound,
                                                 upper_integration_bound)
-            self.na += localised_occupancy
+            self.occupancy += localised_occupancy
 
         else:
             self._convert_to_acb()
             # Numerically integrate the dos to find the occupancy
-            self.na = acb.integral(lambda x, _: self.create_dos(x), 
+            self.occupancy = acb.integral(lambda x, _: self._create_dos(x), 
                                                 self.eps_min, 
                                                 arb('0.0'), 
                                                 rel_tol=np.power(2, -self.precision/2))
         if self.verbose:
-            print(f'Single particle occupancy: {self.na}')
+            print(f'Single particle occupancy: {self.occupancy}')
 
-    def create_energy_integrand(self, eps):
+    def _create_energy_integrand(self, eps):
         """Create the energy integrand of the system."""
-        eps_function = self.create_adsorbate_line
-        Delta = self.create_Delta_reg
-        Delta0 = self.create_Delta0_reg
-        Lambda = self.create_Lambda_reg
+        eps_function = self._create_adsorbate_line
+        Delta = self._create_Delta_reg
+        Delta0 = self._create_Delta0_reg
+        Lambda = self._create_Lambda_reg
 
         # Determine the energy of the system
         numerator = Delta(eps) + Delta0(eps) 
@@ -408,7 +426,7 @@ class NewnsAndersonNumerical:
             assert arctan_integrand >= -np.pi, "Arctan integrand must be greater than -pi"
             return arctan_integrand
     
-    def calculate_energy(self):
+    def calculate_hybridisation_energy(self):
         """Calculate the energy from the Newns-Anderson model."""
 
         # We do not need multi-precision for this calculation
@@ -416,17 +434,17 @@ class NewnsAndersonNumerical:
         self.find_poles_green_function()
 
         poles_to_consider = [pole for pole in self.poles if pole is not None]
-        delta_E_ = integrate.quad(self.create_energy_integrand, 
+        delta_E_ = integrate.quad(self._create_energy_integrand, 
                             self.eps_min, 0,
                             points = tuple(poles_to_consider),
                             limit=100)[0]
 
-        self.DeltaE = delta_E_ * 2 / np.pi 
-        self.DeltaE -= 2 * self.eps_a
+        self.hybridisation_energy = delta_E_ * 2 / np.pi 
+        self.hybridisation_energy -= 2 * self.eps_a
 
         # Check if DeltaE is positive and within the NUMERICAL_NOISE_THRESHOLD
-        if self.DeltaE > 0 and self.DeltaE < self.NUMERICAL_NOISE_THRESHOLD:
-            self.DeltaE = 0
+        if self.hybridisation_energy > 0 and self.hybridisation_energy < self.NUMERICAL_NOISE_THRESHOLD:
+            self.hybridisation_energy = 0
 
         if self.verbose:
-            print(f'Energy of the system: {self.DeltaE} eV')
+            print(f'Energy of the system: {self.hybridisation_energy} eV')
