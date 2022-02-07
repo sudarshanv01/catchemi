@@ -32,7 +32,7 @@ class NewnsAndersonNumerical:
         to get the chemisorption energy."""
         self.eps_min = np.min(self.eps)
         self.eps_max = np.max(self.eps) 
-        self.wd = self.width / 2
+        self.wd = self.width
         self.eps = np.array(self.eps)
 
         if self.verbose:
