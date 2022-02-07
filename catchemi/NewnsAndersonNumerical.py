@@ -279,7 +279,8 @@ class NewnsAndersonNumerical:
 
         # In case Delta0 is not-zero, there will be no poles
         if self.Delta0_mag > 0:
-            return
+            self.poles.append([False, False, False])
+            return self.poles
 
         # If Delta0 is zero, there will be three possible
         # poles, one on the left and one on the right and 
