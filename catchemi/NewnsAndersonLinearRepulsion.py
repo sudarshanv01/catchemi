@@ -18,13 +18,14 @@ class FitParametersNewnsAnderson:
         self.Vsd = kwargs.get('Vsd', None)
         self.width = kwargs.get('width', None)
         self.eps_a = kwargs.get('eps_a', None)
-        self.eps_sp_max = kwargs.get('eps_sp_max', None)
-        self.eps_sp_min = kwargs.get('eps_sp_min', None)
-        self.Delta0_mag = kwargs.get('Delta0_mag', None)
-        self.precision = kwargs.get('precision', None)
+        self.eps_sp_max = kwargs.get('eps_sp_max', 15)
+        self.eps_sp_min = kwargs.get('eps_sp_min', -15)
+        self.Delta0_mag = kwargs.get('Delta0_mag', 0.0)
+        self.precision = kwargs.get('precision', 50)
         self.verbose = kwargs.get('verbose', False)
-        self.eps = kwargs.get('eps', None)
+        self.eps = kwargs.get('eps', np.linspace(-30, 10))
         self.store_hyb_energies = kwargs.get('store_hyb_energies', False)
+        self.no_of_bonds = kwargs.get('no_of_bonds', 1)
 
         self.validate_inputs()
         
@@ -35,19 +36,6 @@ class FitParametersNewnsAnderson:
         assert self.width != None, "width is not defined."
         assert self.eps_a != None, "eps_a is not defined."
 
-        assert len(self.Vsd) == len(self.width)
-
-        # The following default values are
-        # to be set if not provided and are
-        # constant for all metals.
-        if self.eps_sp_max == None: 
-            self.eps_sp_max = 15
-        if self.eps_sp_min == None: 
-            self.eps_sp_min = -15
-        if self.Delta0_mag == None:
-            self.Delta0_mag = 0.0
-        if self.precision == None: 
-            self.precision = 50
 
     def fit_parameters(self, args, eps_ds) -> np.ndarray:
         """Fit parameters of alpha, beta and constant offset
@@ -91,10 +79,17 @@ class FitParametersNewnsAnderson:
                 beta=beta,
                 constant_offset=constant_offset,
                 )
-            chemi_energy.append(chemisorption.get_chemisorption_energy())
+            # Multiply by number of bonds
+            chemi_energy.append(chemisorption.get_chemisorption_energy() * self.no_of_bonds)
+            # chemi_energy.append(chemisorption.get_chemisorption_energy())
             if self.store_hyb_energies:
-                hybridisation_energies.append(chemisorption.get_hybridisation_energy())
-                orthogonalisation_energies.append(chemisorption.get_orthogonalisation_energy())
+                # hybridisation_energies.append(chemisorption.get_hybridisation_energy())
+                # orthogonalisation_energies.append(chemisorption.get_orthogonalisation_energy())
+                # Multiply by number of bonds
+                hyb_energy = chemisorption.get_hybridisation_energy() * self.no_of_bonds
+                hybridisation_energies.append(hyb_energy)
+                ortho_energy = chemisorption.get_orthogonalisation_energy() * self.no_of_bonds
+                orthogonalisation_energies.append(ortho_energy)
                 occupancies.append(chemisorption.get_occupancy())
 
         chemi_energy = np.array(chemi_energy) 
