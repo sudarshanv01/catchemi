@@ -24,6 +24,7 @@ class FitParametersNewnsAnderson:
         self.precision = kwargs.get('precision', None)
         self.verbose = kwargs.get('verbose', False)
         self.eps = kwargs.get('eps', None)
+        self.store_hyb_energies = kwargs.get('store_hyb_energies', False)
 
         self.validate_inputs()
         
@@ -62,6 +63,13 @@ class FitParametersNewnsAnderson:
         # Determine the chemisorption energy for the 
         # materials for which we have eps_d values
         chemi_energy = []
+        # Hybridisation energies if needed
+        hybridisation_energies = []
+        # Orthogonalisation energies if needed
+        orthogonalisation_energies = []
+        # Store the occupancy
+        occupancies = []
+
         for i, eps_d in enumerate(eps_ds):
             Vsd = self.Vsd[i]
             width = self.width[i]
@@ -84,8 +92,17 @@ class FitParametersNewnsAnderson:
                 constant_offset=constant_offset,
                 )
             chemi_energy.append(chemisorption.get_chemisorption_energy())
+            if self.store_hyb_energies:
+                hybridisation_energies.append(chemisorption.get_hybridisation_energy())
+                orthogonalisation_energies.append(chemisorption.get_orthogonalisation_energy())
+                occupancies.append(chemisorption.get_occupancy())
 
         chemi_energy = np.array(chemi_energy) 
+
+        if self.store_hyb_energies:
+            self.hyb_energy = np.array(hybridisation_energies)
+            self.ortho_energy = np.array(orthogonalisation_energies)
+            self.occupancy = np.array(occupancies)
 
         # Write out the parameters
         if self.verbose:
@@ -113,6 +130,8 @@ class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
                          eps_sp_min, precision, verbose)
         self.alpha = alpha
         self.beta = beta
+        assert self.alpha >= 0.0, "alpha must be positive."
+        assert self.beta >= 0.0, "beta must be positive."
         self.constant_offset = constant_offset
 
         # The goal is to find the chemisorption energy
