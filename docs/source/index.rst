@@ -1,7 +1,13 @@
 Welcome to CatChemi's documentation!
 ====================================
 
-.. automodule:: norskov_newns_anderson.NewnsAnderson
+.. automodule:: catchemi.NewnsAndersonNumerical
+   :members:
+.. automodule:: catchemi.NewnsAndersonDerivatives
+   :members:
+.. automodule:: catchemi.NewnsAndersonLinearRepulsion
+   :members:
+.. automodule:: catchemi.NewnsAndersonAnalytical
    :members:
 
 .. toctree::

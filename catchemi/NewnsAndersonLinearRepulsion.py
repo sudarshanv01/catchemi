@@ -12,6 +12,35 @@ from flint import acb, arb, ctx
 from catchemi import NewnsAndersonNumerical
 
 class FitParametersNewnsAnderson:
+    """Class for fitting the Newns-Anderson model to the
+    DFT energies.
+
+    Vsd: list
+        The coupling element of the Newns-Anderson model.
+    width: list
+           The width of the d-states of the model. Note that
+           it is not the total width but that between the 
+           d-band centre and the edge of the semi-ellipse
+    eps_a: float
+           Renormalised energy of the adsorbate.
+    eps_sp_max: float
+           Maximum energy of the sp-states.
+    eps_sp_min: float
+           Minimum energy of the sp-states.
+    Delta0_mag: float
+           Augmentation of the sp states into the d-states.
+    eps: list
+           The range of energy values on which the fitting is done.
+    store_hyb_energies: bool
+           If True, the hybridisation energies and 
+           orthogonalisation energies are stored.
+    no_of_bonds: list
+           The number of bonds for each material.
+
+    Outputs:
+
+    chemi_energy: The chemisorption energy for each material.
+    """
 
     def __init__(self, **kwargs):
         """Here we convert everything into numpy arrays."""
@@ -25,7 +54,7 @@ class FitParametersNewnsAnderson:
         self.verbose = kwargs.get('verbose', False)
         self.eps = kwargs.get('eps', np.linspace(-30, 10))
         self.store_hyb_energies = kwargs.get('store_hyb_energies', False)
-        self.no_of_bonds = kwargs.get('no_of_bonds', 1)
+        self.no_of_bonds = kwargs.get('no_of_bonds', np.ones(len(self.Vsd)))
 
         self.validate_inputs()
         
@@ -79,24 +108,33 @@ class FitParametersNewnsAnderson:
                 beta=beta,
                 constant_offset=constant_offset,
                 )
-            # Multiply by number of bonds
-            chemi_energy.append(chemisorption.get_chemisorption_energy() * self.no_of_bonds)
-            # chemi_energy.append(chemisorption.get_chemisorption_energy())
+            
+            # Store the chemisorption energy
+            e_chem = chemisorption.get_chemisorption_energy()
+            chemi_energy.append(e_chem)
+
             if self.store_hyb_energies:
-                # hybridisation_energies.append(chemisorption.get_hybridisation_energy())
-                # orthogonalisation_energies.append(chemisorption.get_orthogonalisation_energy())
-                # Multiply by number of bonds
-                hyb_energy = chemisorption.get_hybridisation_energy() * self.no_of_bonds
+                
+                # Store the hybridisation energies
+                hyb_energy = chemisorption.get_hybridisation_energy() 
                 hybridisation_energies.append(hyb_energy)
-                ortho_energy = chemisorption.get_orthogonalisation_energy() * self.no_of_bonds
+
+                # Store the orthogonalisation energies
+                ortho_energy = chemisorption.get_orthogonalisation_energy() 
                 orthogonalisation_energies.append(ortho_energy)
+
+                # Store the occupancy
                 occupancies.append(chemisorption.get_occupancy())
 
-        chemi_energy = np.array(chemi_energy) 
+        # Multiply the chemisorption energies with the
+        # number of bonds
+        chemi_energy = np.multiply(chemi_energy, self.no_of_bonds) 
 
         if self.store_hyb_energies:
-            self.hyb_energy = np.array(hybridisation_energies)
-            self.ortho_energy = np.array(orthogonalisation_energies)
+            # Same treatment of bonds as the chemisorption energy
+            self.hyb_energy = np.multiply(hybridisation_energies, self.no_of_bonds)
+            self.ortho_energy = np.multiply(orthogonalisation_energies, self.no_of_bonds)
+            # The occupancy is store as per bond
             self.occupancy = np.array(occupancies)
 
         # Write out the parameters
