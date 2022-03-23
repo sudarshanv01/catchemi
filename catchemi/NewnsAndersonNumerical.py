@@ -25,6 +25,7 @@ class NewnsAndersonNumerical:
     eps_sp_min: float = -15
     precision: int = 50
     verbose: bool = False
+    spin: float = 2
     NUMERICAL_NOISE_THRESHOLD = 1e-2
 
     def __post_init__(self):
@@ -440,8 +441,8 @@ class NewnsAndersonNumerical:
                             points = tuple(poles_to_consider),
                             limit=100)[0]
 
-        self.hybridisation_energy = delta_E_ * 2 / np.pi 
-        self.hybridisation_energy -= 2 * self.eps_a
+        self.hybridisation_energy = delta_E_ * self.spin / np.pi 
+        self.hybridisation_energy -= self.spin * self.eps_a
 
         # Check if DeltaE is positive and within the NUMERICAL_NOISE_THRESHOLD
         if self.hybridisation_energy > 0 and self.hybridisation_energy < self.NUMERICAL_NOISE_THRESHOLD:

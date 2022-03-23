@@ -55,6 +55,7 @@ class FitParametersNewnsAnderson:
         self.eps = kwargs.get('eps', np.linspace(-30, 10))
         self.store_hyb_energies = kwargs.get('store_hyb_energies', False)
         self.no_of_bonds = kwargs.get('no_of_bonds', np.ones(len(self.Vsd)))
+        self.spin = kwargs.get('spin', 2)
 
         self.validate_inputs()
         
@@ -86,6 +87,8 @@ class FitParametersNewnsAnderson:
         orthogonalisation_energies = []
         # Store the occupancy
         occupancies = []
+        # Store the filling
+        filling_factor = []
 
         for i, eps_d in enumerate(eps_ds):
             Vsd = self.Vsd[i]
@@ -107,6 +110,7 @@ class FitParametersNewnsAnderson:
                 alpha=alpha,
                 beta=beta,
                 constant_offset=constant_offset,
+                spin=self.spin,
                 )
             
             # Store the chemisorption energy
@@ -126,6 +130,9 @@ class FitParametersNewnsAnderson:
                 # Store the occupancy
                 occupancies.append(chemisorption.get_occupancy())
 
+                # Store the filling
+                filling_factor.append(chemisorption.get_dband_filling())
+
         # Multiply the chemisorption energies with the
         # number of bonds
         chemi_energy = np.multiply(chemi_energy, self.no_of_bonds) 
@@ -136,6 +143,8 @@ class FitParametersNewnsAnderson:
             self.ortho_energy = np.multiply(orthogonalisation_energies, self.no_of_bonds)
             # The occupancy is store as per bond
             self.occupancy = np.array(occupancies)
+            # Store the fractional filling factor
+            self.filling_factor = np.array(filling_factor)
 
         # Write out the parameters
         if self.verbose:
@@ -156,11 +165,11 @@ class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
     def __init__(self, Vsd, eps_a, eps_d, width, eps, 
                  Delta0_mag=0.0, eps_sp_max=15, eps_sp_min=-15,
                  precision=50, verbose=False,
-                 alpha=0.0, beta=0.0, constant_offset=0.0):
+                 alpha=0.0, beta=0.0, constant_offset=0.0, spin=2):
         Vak = np.sqrt(beta) * Vsd
         super().__init__(Vak, eps_a, eps_d, width, 
                          eps, Delta0_mag, eps_sp_max,
-                         eps_sp_min, precision, verbose)
+                         eps_sp_min, precision, verbose, spin)
         self.alpha = alpha
         self.beta = beta
         assert self.alpha >= 0.0, "alpha must be positive."
@@ -171,6 +180,8 @@ class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
         self.chemisorption_energy = None
         # Also store the orthogonalisation energy
         self.orthogonalisation_energy = None
+        # Store the spin
+        self.spin = spin
     
     def get_chemisorption_energy(self):
         """Utility function for returning 
@@ -205,7 +216,7 @@ class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
         self.get_dband_filling()
 
         # orthonogonalisation energy
-        self.orthogonalisation_energy = 2 * ( self.occupancy.real +  self.filling.real ) * self.alpha * self.Vak**2
+        self.orthogonalisation_energy = self.spin * ( self.occupancy.real +  self.filling.real ) * self.alpha * self.Vak**2
         assert self.orthogonalisation_energy >= 0
 
         # chemisorption energy is the sum of the hybridisation
