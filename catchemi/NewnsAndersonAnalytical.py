@@ -1,12 +1,7 @@
-
+"""Implement (semi-)analytical expressions in Newns' paper"""
 from dataclasses import dataclass
 import numpy as np
-from scipy import signal
-from scipy import integrate
-from scipy import optimize
-import warnings
 from pprint import pprint
-import mpmath as mp
 
 @dataclass
 class NewnsAndersonAnalytical:
