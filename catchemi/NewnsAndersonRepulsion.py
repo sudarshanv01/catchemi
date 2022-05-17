@@ -29,7 +29,10 @@ class FitParametersNewnsAnderson:
     no_of_bonds: list
            The number of bonds for each material.
     type_repulsion: str
-            Choose between 'linear' and 'grimley'.
+            Choose between 'linear', 'linear_mod' and 'grimley'
+            where linear is just the two-state repulsion, linear_mod
+            is the two-state repulsion with the modification of the
+            large-S contributions and grimley is the Grimley repulsion.
 
     Outputs:
 
@@ -60,7 +63,7 @@ class FitParametersNewnsAnderson:
         assert self.Vsd != None, "Vsd is not defined."
         assert self.width != None, "width is not defined."
         assert self.eps_a != None, "eps_a is not defined."
-        assert self.type_repulsion in ['linear', 'grimley'], \
+        assert self.type_repulsion in ['linear', 'linear_mod', 'grimley'], \
             "type_repulsion must be 'linear' or 'grimley'."
 
 
@@ -93,7 +96,7 @@ class FitParametersNewnsAnderson:
 
             # Choose the function to use for the repulsive
             # contributions based on the type of repulsion used
-            if self.type_repulsion == 'linear':
+            if self.type_repulsion in [ 'linear', 'linear_mod' ]:
                 fitting_class = NewnsAndersonLinearRepulsion
             elif self.type_repulsion == 'grimley':
                 fitting_class = NewnsAndersonGrimleyRepulsion
@@ -114,6 +117,11 @@ class FitParametersNewnsAnderson:
                 constant_offset = constant_offset,
                 spin = self.spin,
                 )
+            
+            if self.type_repulsion == 'linear_mod':
+                # Make sure that the largeS contribution is
+                # used when the type of repulsion is linear_mod
+                chemisorption.add_largeS_contribution = True
                 
             # Store the chemisorption energy
             e_chem = chemisorption.get_chemisorption_energy()
