@@ -2,12 +2,8 @@
 
 from dataclasses import dataclass
 import numpy as np
-from scipy import signal
 from scipy import integrate
 from scipy import optimize
-import warnings
-from pprint import pprint
-import mpmath as mp
 from flint import acb, arb, ctx
 
 @dataclass
@@ -69,6 +65,12 @@ class NewnsAndersonNumerical:
         self.eps_a = convert_to_acb(self.eps_a)
         self.Vak = convert_to_acb(self.Vak)
         self.calctype = 'multiprecision'
+        if hasattr(self, 'Sak'): 
+            self.Sak = convert_to_acb(self.Sak)
+        if hasattr(self, 'alpha'):
+            self.alpha = convert_to_acb(self.alpha)
+        if hasattr(self, 'beta'):
+            self.beta = convert_to_acb(self.beta)
         return args
     
     def _convert_to_float(self, *args) -> None:
@@ -87,6 +89,12 @@ class NewnsAndersonNumerical:
         self.eps_a = float(self.eps_a.real)
         self.Vak = float(self.Vak.real)
         self.calctype = 'float'
+        if hasattr(self, 'Sak'):
+            self.Sak = float(self.Sak.real)
+        if hasattr(self, 'alpha'):
+            self.alpha = float(self.alpha.real)
+        if hasattr(self, 'beta'):
+            self.beta = float(self.beta.real)
         return args
 
     def get_hybridisation_energy(self) -> float:

@@ -1,23 +1,25 @@
-"""Account for linear repulsive term from overlap."""
-
+"""Determine the elements of the Newns-Anderson-Grimley model."""
 import numpy as np
-from catchemi import NewnsAndersonNumerical
+from catchemi import NewnsAndersonGrimleyNumerical
 
-class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
-    """Class that provides the Newns-Anderson hybridisation
-    energy along with the linear orthogonalisation energy.
-    It subclasses NewnsAndersonNumerical for the Hybridisation
-    energy and adds the orthogonalisation penalty separately."""
+class NewnsAndersonGrimleyRepulsion(NewnsAndersonGrimleyNumerical):
+    """Class meant to enable fitting of parameters to the Newns-Anderson
+    Grimley model of chemisorption. This class is meant to facilitate
+    incorporating repulsive interations through the Newns-Anderson Grimley
+    model of chemisorption."""
 
     def __init__(self, Vsd, eps_a, eps_d, width, eps, 
                  Delta0_mag=0.0, eps_sp_max=15, eps_sp_min=-15,
                  precision=50, verbose=False,
-                 alpha=0.0, beta=0.0, constant_offset=0.0, spin=2):
+                 alpha=0.0, beta=0.0, constant_offset=0, spin=2):
         Vak = np.sqrt(beta) * Vsd
         super().__init__(Vak, eps_a, eps_d, width, 
                          eps, Delta0_mag, eps_sp_max,
-                         eps_sp_min, precision, verbose, spin)
+                         eps_sp_min, precision, verbose,
+                         alpha, spin)
         self.alpha = alpha
+        # store the initial value of alpha fed in
+        self.alpha_initial = alpha
         self.beta = beta
         assert self.alpha >= 0.0, "alpha must be positive."
         assert self.beta >= 0.0, "beta must be positive."
@@ -62,12 +64,18 @@ class NewnsAndersonLinearRepulsion(NewnsAndersonNumerical):
         self.get_occupancy()
         self.get_dband_filling()
 
-        # orthonogonalisation energy
-        self.orthogonalisation_energy = self.spin * ( self.occupancy.real +  self.filling.real ) * self.alpha * self.Vak**2
-        assert self.orthogonalisation_energy >= 0
+        # The hybridisation energy is the chemisorption energy
+        # for the Newns-Anderson Grimley model because it includes overlap.
+        self.chemisorption_energy = self.hybridisation_energy
 
-        # chemisorption energy is the sum of the hybridisation
-        # and the orthogonalisation energy
-        self.chemisorption_energy = self.hybridisation_energy + self.orthogonalisation_energy 
-        # Add the constant offset which is helpful for fitting routines
+        # To isolate the orthogonolsation energy, set alpha to 
+        # zero and determine the no-repulsion energy, then 
+        # subtract it from the chemisorption energy.
+        self.alpha = 0.0
+        self.calculate_hybridisation_energy()
+        self.orthogonalisation_energy =  self.chemisorption_energy - self.hybridisation_energy
+        print('Orthogonalisation energy is %1.2f'%self.orthogonalisation_energy)
+        assert self.orthogonalisation_energy >= 0.0, "Orthogonalisation energy must be positive."
+
+        # Add the constant offset to the chemisorption energy
         self.chemisorption_energy += self.constant_offset
