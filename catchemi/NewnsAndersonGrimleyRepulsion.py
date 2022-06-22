@@ -76,6 +76,15 @@ class NewnsAndersonGrimleyRepulsion(NewnsAndersonGrimleyNumerical):
         self.orthogonalisation_energy =  self.chemisorption_energy - self.hybridisation_energy
         print('Orthogonalisation energy is %1.2f'%self.orthogonalisation_energy)
         assert self.orthogonalisation_energy >= 0.0, "Orthogonalisation energy must be positive."
+        # Store the hybridisation energy for no alpha
+        hyb_energy = self.hybridisation_energy
+
+        # Now run it with the initial alpha again
+        # just to get the same quantities as what was asked for
+        self.alpha = self.alpha_initial
+        self.calculate_hybridisation_energy()
+        # Replace the hybridisation energies with the alpha=0 value
+        self.hybridisation_energy = hyb_energy
 
         # Add the constant offset to the chemisorption energy
         self.chemisorption_energy += self.constant_offset
