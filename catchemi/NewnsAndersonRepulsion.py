@@ -65,18 +65,46 @@ class FitParametersNewnsAnderson:
         assert self.eps_a != None, "eps_a is not defined."
         assert self.type_repulsion in ['linear', 'linear_mod', 'grimley'], \
             "type_repulsion must be 'linear' or 'grimley'."
+        if isinstance(self.eps_a, list):
+            print('Multiple eps_a have been passed.')
+        if isinstance(self.eps_a, float) or isinstance(self.eps_a, int):
+            self.eps_a = [self.eps_a]
 
+    def _validate_guesses(self, alpha, beta, constant_offset):
+        """Check the validity of the length of the input."""
+        # Each input quantity must be exactly 
+        # as long as the number of single particle states
+        # used in the computation.
+
+        if isinstance(alpha, float):
+            alpha = [alpha]
+        if isinstance(beta, float):
+            beta = [beta]
+        if isinstance(constant_offset, float):
+            constant_offset = [constant_offset]
+
+        assert len(alpha) == len(self.eps_a)
+        assert len(beta) == len(self.eps_a)
+        assert len(constant_offset) == len(self.eps_a)
+
+        return alpha, beta, constant_offset
 
     def fit_parameters(self, args, eps_ds) -> np.ndarray:
         """Fit parameters of alpha, beta and constant offset
         of the NewnsAndersonModel including repulsive interations
         to DFT energies."""
 
-        alpha, beta, constant_offset = args
+        # alpha, beta, constant_offset = args
+        alpha = args[0:len(self.eps_a)]
+        beta = args[len(self.eps_a):2*len(self.eps_a)]
+        constant_offset = args[2*len(self.eps_a):]
+        # Validate the inputs
+        alpha, beta, constant_offset = self._validate_guesses(alpha, beta, constant_offset)
+
         # Make sure that all the quantities are positive
         # Constant offset can be any sign
-        alpha = abs(alpha)
-        beta = abs(beta)
+        alpha = [ abs(a) for a in alpha ]
+        beta =  [ abs(b) for b in beta ]
 
         # Determine the chemisorption energy for the 
         # materials for which we have eps_d values
@@ -101,47 +129,71 @@ class FitParametersNewnsAnderson:
             elif self.type_repulsion == 'grimley':
                 fitting_class = NewnsAndersonGrimleyRepulsion
 
-            chemisorption = fitting_class( 
-                Vsd = Vsd,
-                eps_a = self.eps_a,
-                eps_d = eps_d,
-                width = width,
-                eps = self.eps,
-                Delta0_mag = self.Delta0_mag,
-                eps_sp_max = self.eps_sp_max,
-                eps_sp_min = self.eps_sp_min,
-                precision = self.precision,
-                verbose = self.verbose,
-                alpha = alpha,
-                beta = beta,
-                constant_offset = constant_offset,
-                spin = self.spin,
-                )
+            # Iterate over each single particle state to get 
+            # a different value of the energies.
+            hyb_energy_i = []
+            ortho_energy_i = []
+            occ_i = []
+            filling_i = []
+            chemi_energy_i = []
+
+            for eps_a, alpha_i, beta_i, constant_offset_i in zip(self.eps_a, alpha, beta, constant_offset):
+                chemisorption = fitting_class( 
+                    Vsd = Vsd,
+                    eps_a = eps_a,
+                    eps_d = eps_d,
+                    width = width,
+                    eps = self.eps,
+                    Delta0_mag = self.Delta0_mag,
+                    eps_sp_max = self.eps_sp_max,
+                    eps_sp_min = self.eps_sp_min,
+                    precision = self.precision,
+                    verbose = self.verbose,
+                    alpha = alpha_i,
+                    beta = beta_i,
+                    constant_offset = constant_offset_i,
+                    spin = self.spin,
+                    )
             
-            if self.type_repulsion == 'linear_mod':
-                # Make sure that the largeS contribution is
-                # used when the type of repulsion is linear_mod
-                chemisorption.add_largeS_contribution = True
+                if self.type_repulsion == 'linear_mod':
+                    # Make sure that the largeS contribution is
+                    # used when the type of repulsion is linear_mod
+                    chemisorption.add_largeS_contribution = True
                 
-            # Store the chemisorption energy
-            e_chem = chemisorption.get_chemisorption_energy()
-            chemi_energy.append(e_chem)
+                # Store the chemisorption energy
+                e_chem = chemisorption.get_chemisorption_energy()
+                chemi_energy_i.append(e_chem)
+                # Store the hybridisation energies
+                e_hyb = chemisorption.get_hybridisation_energy() 
+                hyb_energy_i.append(e_hyb)
+                # Store the orthogonalisation energies
+                e_ortho = chemisorption.get_orthogonalisation_energy() 
+                ortho_energy_i.append(e_ortho)
+                # Store the occupancy
+                occ_i.append(chemisorption.get_occupancy())
+                # Store the filling
+                filling_i.append(chemisorption.get_dband_filling())
+
+            # Store the energies
+            if len(self.eps_a) > 1:
+                # Sum over the energies of the single particle states
+                chemi_energy.append(np.sum(chemi_energy_i))
+            else:
+                chemi_energy += chemi_energy_i
 
             if self.store_hyb_energies:
-                
-                # Store the hybridisation energies
-                hyb_energy = chemisorption.get_hybridisation_energy() 
-                hybridisation_energies.append(hyb_energy)
-
-                # Store the orthogonalisation energies
-                ortho_energy = chemisorption.get_orthogonalisation_energy() 
-                orthogonalisation_energies.append(ortho_energy)
-
-                # Store the occupancy
-                occupancies.append(chemisorption.get_occupancy())
-
-                # Store the filling
-                filling_factor.append(chemisorption.get_dband_filling())
+                if len(self.eps_a) > 1:
+                    hybridisation_energies.append(np.sum(hyb_energy_i))
+                    orthogonalisation_energies.append(np.sum(ortho_energy_i))
+                    # Occupancies can be reported separately
+                    occupancies.append(occ_i)
+                    # Filling factor can be reported separately
+                    filling_factor.append(filling_i)
+                else:
+                    hybridisation_energies.extend(hyb_energy_i)
+                    orthogonalisation_energies.extend(ortho_energy_i)
+                    occupancies.extend(occ_i)
+                    filling_factor.extend(filling_i)
 
         # Multiply the chemisorption energies with the
         # number of bonds
