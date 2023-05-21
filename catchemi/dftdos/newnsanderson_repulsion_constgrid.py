@@ -21,6 +21,7 @@ class ConstantGridChemisorption:
         Vaksq: npt.ArrayLike,
         S: npt.ArrayLike,
         constant: float = 0,
+        eps_f: float = 0,
     ):
         self.rho_d = rho_d
         self.energy = energy
@@ -31,7 +32,7 @@ class ConstantGridChemisorption:
         self.constant = constant
 
         self.mask = np.zeros_like(self.energy)
-        self.mask[self.energy < self.eps_a] = 1
+        self.mask[self.energy < eps_f] = 1
 
     def __call__(self, *args: Any, **kwgs: Any) -> Any:
         self.generate_Delta()
@@ -42,7 +43,10 @@ class ConstantGridChemisorption:
         self.generate_f()
         self.generate_orthogonalization_energy()
 
-        return self.hybridisation_energy + self.orthogonalization_energy + self.constant
+        total_energy = (
+            self.hybridisation_energy + self.orthogonalization_energy + self.constant
+        )
+        return total_energy
 
     def generate_Delta(self):
         """Delta = pi V_{ak}^2 rho_d + Delta_0"""
@@ -66,10 +70,11 @@ class ConstantGridChemisorption:
     def generate_hybridisation_energy(self):
         """Generate the hybridisation energy."""
 
-        arctan_integrand = self.generate_arctan_integrand()
+        arctan_integrand = self.get_arctan_integrand()
         arctan_integrand *= self.mask
 
         self.hybridisation_energy = np.trapz(arctan_integrand, x=self.energy, axis=-1)
+        self.hybridisation_energy = self.hybridisation_energy.reshape(-1, 1)
 
     def generate_rho_aa(self):
         """Calculate the adsorbate density of states."""
@@ -82,6 +87,7 @@ class ConstantGridChemisorption:
         """Calculate the occupancy of the adsorbate."""
         na_integrand = self.rho_aa * self.mask
         na = np.trapz(na_integrand, x=self.energy, axis=-1)
+        na = na.reshape(-1, 1)
         self.na = na
 
     def generate_f(self):
@@ -92,6 +98,7 @@ class ConstantGridChemisorption:
         f = np.trapz(f_integrand_numerator, x=self.energy, axis=-1) / np.trapz(
             f_integrand_denominator, x=self.energy, axis=-1
         )
+        f = f.reshape(-1, 1)
         self.f = f
 
     def generate_orthogonalization_energy(self):
@@ -105,33 +112,49 @@ class ConstantGridFittingParameters(ConstantGridChemisorption):
     def __init__(
         self,
         adsorption_energy_filename: Union[str, Path],
-        Vsdsq_filename: Union[str, Path],
+        Vsd_filename: Union[str, Path],
         pdos_filename: Union[str, Path],
+        energy_filename: Union[str, Path],
         Delta0: float,
         eps_a: float,
     ):
         self.adsorption_energies = np.loadtxt(adsorption_energy_filename, skiprows=1)
-        self.Vsdsq = np.loadtxt(Vsdsq_filename, skiprows=1)
+        self.Vsd = np.loadtxt(Vsd_filename, skiprows=1)
         self.pdos = np.loadtxt(pdos_filename, skiprows=1)
-        self.remove_nan_entries()
+        self.energy = np.loadtxt(energy_filename, skiprows=1)
+        self.cleanup_data()
+        self.generate_rho_d()
+        self.Delta0 = Delta0
+        self.eps_a = eps_a
+
+        self.cleanup_data()
         self.generate_rho_d()
 
-    def remove_nan_entries(self):
+    def cleanup_data(self):
         """Remove the nan entries in self.adsorption_energies and corresponding
         entries in self.Vsdsq and self.pdos."""
+        self.adsorption_energies = self.adsorption_energies.reshape(-1, 1)
         mask = np.isnan(self.adsorption_energies)
         self.adsorption_energies = self.adsorption_energies[~mask]
-        self.Vsdsq = self.Vsdsq[~mask]
-        self.pdos = self.pdos[~mask]
+        self.adsorption_energies = self.adsorption_energies.reshape(-1, 1)
+
+        self.Vsd = self.Vsd.reshape(-1, 1)
+        self.Vsd = self.Vsd[~mask]
+        self.Vsdsq = self.Vsd**2
+        self.Vsdsq = self.Vsdsq.reshape(-1, 1)
+
+        self.pdos = self.pdos[~mask.reshape(-1), :]
+        self.energy = self.energy[~mask.reshape(-1), :]
 
     def generate_rho_d(self):
         """Generate the d-density of states by normalising the pdos."""
-        self.rho_d = self.pdos / np.trapz(self.pdos, x=self.energy, axis=-1)
+        normalization = np.trapz(self.pdos, x=self.energy, axis=-1)
+        self.rho_d = self.pdos / normalization.reshape(-1, 1)
 
     def objective_function(self, alpha, beta, gamma):
         """Generate the objective function."""
         Vaksq = beta * self.Vsdsq
-        S = -alpha * np.sqrt(self.Vsdsq)
+        S = -alpha * np.sqrt(Vaksq)
 
         super().__init__(
             Delta0=self.Delta0,
@@ -143,4 +166,8 @@ class ConstantGridFittingParameters(ConstantGridChemisorption):
             constant=gamma,
         )
 
-        return self()
+        mean_absolute_error = np.mean(np.abs(self.adsorption_energies - self()))
+        mean_squared_error = np.mean((self.adsorption_energies - self()) ** 2)
+
+        # return mean_absolute_error
+        return mean_squared_error
