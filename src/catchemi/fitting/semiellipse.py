@@ -1,7 +1,8 @@
 """Perform fitting for the parameters in the model."""
 
 import numpy as np
-from catchemi import NewnsAndersonLinearRepulsion, NewnsAndersonGrimleyRepulsion
+from catchemi.semiellipse.linear_repulsion import NewnsAndersonLinearRepulsion
+from catchemi.semiellipse.grimley_repulsion import NewnsAndersonGrimleyRepulsion
 
 
 class FitParametersNewnsAnderson:

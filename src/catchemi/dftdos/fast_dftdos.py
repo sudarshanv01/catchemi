@@ -11,7 +11,7 @@ from scipy import optimize
 from scipy import signal
 
 
-class ConstantGridChemisorption:
+class FastMultipleMetalChemisorption:
     def __init__(
         self,
         Delta0: float,
@@ -23,6 +23,21 @@ class ConstantGridChemisorption:
         constant: float = 0,
         eps_f: float = 0,
     ):
+        """Calculate the chemisorption energy for a single metal with a constant
+        energy grid on which the density of states is computed. This vectorized
+        version is much faster than the fixed grid version.
+
+        Args:
+            Delta0 (float): The bare adsorbate-metal hybridisation energy.
+            eps_a (float): The adsorbate energy.
+            rho_d (npt.ArrayLike): The adsorbate density of states.
+            energy (npt.ArrayLike): The energy grid.
+            Vaksq (npt.ArrayLike): The adsorbate-metal hybridisation matrix
+                elements.
+            S (npt.ArrayLike): The overlap matrix elements.
+            constant (float, optional): A constant energy offset. Defaults to 0.
+            eps_f (float, optional): The Fermi energy. Defaults to 0.
+        """
         self.rho_d = rho_d
         self.energy = energy
         self.Delta0 = Delta0
@@ -106,89 +121,3 @@ class ConstantGridChemisorption:
         self.orthogonalization_energy = (
             -2 * (self.na + self.f) * np.sqrt(self.Vaksq) * self.S
         )
-
-
-class ConstantGridFittingParameters(ConstantGridChemisorption):
-    def __init__(
-        self,
-        adsorption_energy_filename: Union[str, Path],
-        Vsd_filename: Union[str, Path],
-        pdos_filename: Union[str, Path],
-        energy_filename: Union[str, Path],
-        Delta0: float,
-        eps_a: List[float],
-        indices_to_keep: List[int],
-    ):
-        self.adsorption_energies = np.loadtxt(adsorption_energy_filename, skiprows=1)
-        self.Vsd = np.loadtxt(Vsd_filename, skiprows=1)
-        self.pdos = np.loadtxt(pdos_filename, skiprows=1)
-        self.energy = np.loadtxt(energy_filename, skiprows=1)
-        self.indices_to_keep = indices_to_keep
-
-        self.adsorption_energies = self.adsorption_energies[self.indices_to_keep]
-        self.Vsd = self.Vsd[self.indices_to_keep]
-        self.pdos = self.pdos[self.indices_to_keep]
-        self.energy = self.energy[self.indices_to_keep]
-
-        self.cleanup_data()
-        self.generate_rho_d()
-        self.Delta0 = Delta0
-        if isinstance(eps_a, float):
-            self._eps_a = np.array([eps_a])
-        self._eps_a = eps_a
-
-    def cleanup_data(self):
-        """Remove the nan entries in self.adsorption_energies and corresponding
-        entries in self.Vsdsq and self.pdos."""
-        self.adsorption_energies = self.adsorption_energies.reshape(-1, 1)
-        mask = np.isnan(self.adsorption_energies)
-        self.adsorption_energies = self.adsorption_energies[~mask]
-        self.adsorption_energies = self.adsorption_energies.reshape(-1, 1)
-
-        self.Vsd = self.Vsd.reshape(-1, 1)
-        self.Vsd = self.Vsd[~mask]
-        self.Vsdsq = self.Vsd**2
-        self.Vsdsq = self.Vsdsq.reshape(-1, 1)
-
-        self.pdos = self.pdos[~mask.reshape(-1), :]
-        self.energy = self.energy[~mask.reshape(-1), :]
-
-    def generate_rho_d(self):
-        """Generate the d-density of states by normalising the pdos."""
-        normalization = np.trapz(self.pdos, x=self.energy, axis=-1)
-        self.rho_d = self.pdos / normalization.reshape(-1, 1)
-
-    def objective_function(self, x) -> float:
-        """Generate the objective function.
-        The order of the parameters is:
-        alpha1, alpha2... beta1, beta2... gamma
-        """
-        alpha = x[: len(self._eps_a)]
-        beta = x[len(self._eps_a) : -1]
-        gamma = x[-1]
-
-        model_energies = np.zeros_like(self.adsorption_energies)
-
-        for idx, eps_a in enumerate(self._eps_a):
-
-            Vaksq = beta[idx] * self.Vsdsq
-            S = -alpha[idx] * np.sqrt(Vaksq)
-
-            super().__init__(
-                Delta0=self.Delta0,
-                eps_a=eps_a,
-                rho_d=self.rho_d,
-                energy=self.energy,
-                Vaksq=Vaksq,
-                S=S,
-                constant=gamma,
-            )
-
-            model_energies += self()
-
-        model_energies = np.array(model_energies).reshape(-1, 1)
-        self.model_energies = model_energies
-        mean_squared_error = np.mean((self.adsorption_energies - model_energies) ** 2)
-        root_mean_squared_error = np.sqrt(mean_squared_error)
-
-        return root_mean_squared_error

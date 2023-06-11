@@ -8,14 +8,6 @@ from typing import Callable
 
 
 class NewnsAndersonDerivativeEpsd(NewnsAndersonNumerical):
-    """Class for computing the derivate of quantities
-    from the Newns-Anderson model with respect to the
-    d-band centre. The code computes the derivate both
-    from the analytical expression derived in the
-    manuscript as well as by numerically differentiating
-    quantities on a grid. The latter option is useful for
-    confirming that the derivative is computed as expected."""
-
     def __init__(
         self,
         f_Vsd: Callable[[float], float],
@@ -31,10 +23,55 @@ class NewnsAndersonDerivativeEpsd(NewnsAndersonNumerical):
         verbose=False,
         alpha=0.0,
         beta=0.0,
-        constant_offset=0.0,
         diff_grid=np.linspace(-4, -1),
         use_multiprec=False,
     ):
+        """Class for computing the derivate of quantities
+        from the Newns-Anderson model with respect to the
+        d-band centre. The code computes the derivate both
+        from the analytical expression derived in the
+        manuscript as well as by numerically differentiating
+        quantities on a grid. The latter option is useful for
+        confirming that the derivative is computed as expected.
+
+        Args:
+            f_Vsd (Callable[[float], float]): Function for the
+                Vsd parameter in the Newns-Anderson model.
+            f_Vsd_p (Callable[[float], float]): Derivative of
+                the function for the Vsd parameter in the
+                Newns-Anderson model.
+            eps_a (float): The adsorbate energy.
+            f_wd (Callable[[float], float]): Function for the
+                wd parameter in the Newns-Anderson model.
+            f_wd_p (Callable[[float], float]): Derivative of
+                the function for the wd parameter in the
+                Newns-Anderson model.
+            eps (np.ndarray): The energy grid.
+            Delta0_mag (float, optional): The magnitude of the
+                hybridisation energy. Defaults to 0.0.
+            eps_sp_max (int, optional): The maximum value of
+                the energy grid for the s and p bands.
+                Defaults to 15.
+            eps_sp_min (int, optional): The minimum value of
+                the energy grid for the s and p bands.
+                Defaults to -15.
+            precision (int, optional): The precision to use
+                for the multiprecision calculations.
+                Defaults to 50.
+            verbose (bool, optional): Whether to print
+                information about the calculations.
+                Defaults to False.
+            alpha (float, optional): The alpha parameter
+                in the Newns-Anderson model. Defaults to 0.0.
+            beta (float, optional): The beta parameter
+                in the Newns-Anderson model. Defaults to 0.0.
+            diff_grid (np.ndarray, optional): The grid on
+                which to compute the numerical derivative.
+                Defaults to np.linspace(-4, -1).
+            use_multiprec (bool, optional): Whether to use
+                multiprecision for the calculations.
+                Defaults to False.
+        """
 
         # Since we are taking the derivate with respece
         # to the d-band centre, we need to set the d-band
