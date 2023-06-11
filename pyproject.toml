@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catchemi"
+version = "1.0.0"
+authors = [
+  { name="Sudarshan Vijay", email="sudarshan.vijay@protonmail.com" },
+]
+description = "Implements the expressions for combining the Newns-Anderson model with the Hammer-Norskov for the orthogonalisation term"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = ["error", "ignore::UserWarning", "ignore::DeprecationWarning"]
+log_cli_level = "warning"
+testpaths = ["tests"]

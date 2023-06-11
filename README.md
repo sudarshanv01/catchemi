@@ -1,23 +1,49 @@
-# `CatChemi`
+# `catchemi`
 
-Package for performing energy calculations incorporating the Newns-Anderson model of chemisorption with the orthogonalisation term from the Hammer-Nørksov *d*-band model. The publication containing the expressions is:
+Python package for performing calculations incorporating the Newns-Anderson model of chemisorption with the different orthogonalization terms. Current orthogonalization schemes include the Hammer-Nørksov *d*-band model 2-state term and the Newns-Anderson-Grimley model.
 
-
-Vijay, S., Kastlunger, G., Chan, K., & Nørskov, J. K. (2022). Limits to scaling relations between adsorption energies?. The Journal of Chemical Physics, 156(23), 231102.
-
-and can be found [here](https://aip.scitation.org/doi/full/10.1063/5.0096625).
-
+See [here](https://aip.scitation.org/doi/full/10.1063/5.0096625) for more details about the implementation.
 
 ## Installation
 
-The dependencies required to install `CatChemi` are:
+This package can be installed using a combination of `conda` and `pip`. If you use an M1 Mac, please see the special instructions below before starting the `conda` and `pip` dependecies.
 
-1. `arb`: [link](https://github.com/arb-project/homebrew-arb)
-2. `flint`: [link](https://github.com/fredrik-johansson/flint2)
+Install conda depdencies:
 
-After installing the above packages, create a new virtual environment (see [here](https://realpython.com/python-virtual-environments-a-primer/)) and then clone and pip install the repository as follows:
-
+```bash
+conda env create -f environment.yml
+conda activate catchemi
 ```
-git clone https://github.com/sudarshanv01/CatChemi.git
-pip install CatChemi
+
+Install pip dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install the package:
+
+```bash
+pip install .
+```
+
+(Optional) Install requirements for testing
+
+```bash
+pip install -r requirements-test.txt
+```
+
+(Optional) Install requirements for documentation
+
+```bash
+pip install -r requirements-docs.txt
+```
+
+
+### M1 Mac special instructions
+
+If you are using an M1 Mac, you will need to install `flint` through `brew` before installing any of the above dependencies. 
+
+```bash
+brew install flint
 ```
