@@ -90,6 +90,9 @@ class FastMultipleMetalChemisorption:
 
         self.hybridisation_energy = np.trapz(arctan_integrand, x=self.energy, axis=-1)
         self.hybridisation_energy = self.hybridisation_energy.reshape(-1, 1)
+        self.hybridisation_energy /= np.pi
+        self.hybridisation_energy *= 2
+        self.hybridisation_energy -= 2 * self.eps_a
 
     def generate_rho_aa(self):
         """Calculate the adsorbate density of states."""

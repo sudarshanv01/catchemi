@@ -207,7 +207,9 @@ class FastFitParameters(FastMultipleMetalChemisorption):
         normalization = np.trapz(self.pdos, x=self.energy, axis=-1)
         self.rho_d = self.pdos / normalization.reshape(-1, 1)
 
-    def objective_function(self, x) -> float:
+    def objective_function(
+        self, x, loss_function: str = "mean_absolute_error"
+    ) -> float:
         """Generate the objective function.
         The order of the parameters is:
         alpha1, alpha2... beta1, beta2... gamma
@@ -237,7 +239,15 @@ class FastFitParameters(FastMultipleMetalChemisorption):
 
         model_energies = np.array(model_energies).reshape(-1, 1)
         self.model_energies = model_energies
-        mean_squared_error = np.mean((self.adsorption_energies - model_energies) ** 2)
-        root_mean_squared_error = np.sqrt(mean_squared_error)
 
-        return root_mean_squared_error
+        if loss_function == "mean_absolute_error":
+            mean_absolute_error = np.mean(
+                np.abs(self.adsorption_energies - model_energies)
+            )
+            return mean_absolute_error
+        elif loss_function == "root_mean_squared_error":
+            mean_squared_error = np.mean(
+                (self.adsorption_energies - model_energies) ** 2
+            )
+            root_mean_squared_error = np.sqrt(mean_squared_error)
+            return root_mean_squared_error
