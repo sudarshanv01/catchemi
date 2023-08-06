@@ -17,6 +17,23 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+dependencies = [
+  "numpy",
+  "scipy",
+  "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pre-commit",
+]
+docs = [
+  "Sphinx",
+  "myst-parser",
+  "sphinx-book-theme"
+ ]
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
