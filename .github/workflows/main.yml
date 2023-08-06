@@ -1,0 +1,36 @@
+name: Tests 
+
+on:
+  push:
+    branches: [ main ] 
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 5
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install current package 
+      shell: bash -l {0}
+      run: |
+        pip install .[dev]
+    
+    - name: Test with pytest
+      shell: bash -l {0}
+      run: |
+        pytest
