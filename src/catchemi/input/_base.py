@@ -28,3 +28,7 @@ class BaseInput:
 
     def is_spin_pol(self):
         return self.eps.ndim == 2
+
+    @property
+    def get_number_of_points(self):
+        return self.eps.shape[-1]

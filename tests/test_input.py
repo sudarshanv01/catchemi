@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import numpy.typing as npt
 
-from catchemi.input import BaseInput
+from catchemi.input import BaseInput, CombinedInput, FixedDimCombinedInput
 
 
 @pytest.fixture
@@ -12,7 +12,8 @@ def computed_inputs():
     spin-polarized DFT calculation."""
 
     def _computed_inputs(
-        fixed_dim: bool = False, spin_pol: bool = False
+        fixed_dim: bool = False,
+        spin_pol: bool = False,
     ) -> npt.ArrayLike:
         number_of_metals = 10
         if fixed_dim:
@@ -52,3 +53,74 @@ def test_BaseInput(computed_inputs):
         assert np.allclose(dummy_input.coupling_sd, computed_input["coupling_sd"])
         assert np.allclose(dummy_input.eps_a, computed_input["eps_a"])
         assert dummy_input.is_spin_pol() == False
+
+
+def test_CombinedInput(computed_inputs):
+    class DummyCombinedInput(CombinedInput):
+        def get_combined_eps(self):
+            return np.asarray([input.eps for input in self.inputs])
+
+        def get_combined_pdos(self):
+            return np.asarray([input.pdos for input in self.inputs])
+
+    all_inputs = []
+    for computed_input in computed_inputs():
+        dummy_input = BaseInput(**computed_input)
+        all_inputs.append(dummy_input)
+    combined_input = DummyCombinedInput(all_inputs)
+    for _combined_input, _computed_input in zip(combined_input, all_inputs):
+        assert np.allclose(_combined_input.eps, _computed_input.eps)
+        assert np.allclose(_combined_input.pdos, _computed_input.pdos)
+        assert np.allclose(_combined_input.coupling_sd, _computed_input.coupling_sd)
+        assert np.allclose(_combined_input.eps_a, _computed_input.eps_a)
+        assert _combined_input.is_spin_pol() == False
+
+
+def test_FixedDimCombinedInput(computed_inputs):
+    all_inputs = []
+    for computed_input in computed_inputs(fixed_dim=True):
+        dummy_input = BaseInput(**computed_input)
+        all_inputs.append(dummy_input)
+    combined_input = FixedDimCombinedInput(all_inputs)
+    for _combined_input, _computed_input in zip(combined_input, all_inputs):
+        assert np.allclose(_combined_input.eps, _computed_input.eps)
+        assert np.allclose(_combined_input.pdos, _computed_input.pdos)
+        assert np.allclose(_combined_input.coupling_sd, _computed_input.coupling_sd)
+        assert np.allclose(_combined_input.eps_a, _computed_input.eps_a)
+        assert _combined_input.is_spin_pol() == False
+
+    assert len(combined_input) == len(all_inputs)
+    expected = [input.eps for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_eps()
+    assert np.allclose(output, expected)
+
+    expected = [input.pdos for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_pdos()
+    assert np.allclose(output, expected)
+
+
+def test_FixedDimCombinedInput_spin_pol(computed_inputs):
+    all_inputs = []
+    for computed_input in computed_inputs(fixed_dim=True, spin_pol=True):
+        dummy_input = BaseInput(**computed_input)
+        all_inputs.append(dummy_input)
+    combined_input = FixedDimCombinedInput(all_inputs)
+    for _combined_input, _computed_input in zip(combined_input, all_inputs):
+        assert np.allclose(_combined_input.eps, _computed_input.eps)
+        assert np.allclose(_combined_input.pdos, _computed_input.pdos)
+        assert np.allclose(_combined_input.coupling_sd, _computed_input.coupling_sd)
+        assert np.allclose(_combined_input.eps_a, _computed_input.eps_a)
+        assert _combined_input.is_spin_pol() == True
+
+    assert len(combined_input) == len(all_inputs)
+    expected = [input.eps for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_eps()
+    assert np.allclose(output, expected)
+
+    expected = [input.pdos for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_pdos()
+    assert np.allclose(output, expected)
