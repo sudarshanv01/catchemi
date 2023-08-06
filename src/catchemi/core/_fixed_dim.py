@@ -8,30 +8,7 @@ import numpy.typing as npt
 import scipy
 from scipy import signal
 
-
-@dataclass
-class BaseCalculation(abc.ABC):
-    eps: npt.ArrayLike
-    pdos: npt.ArrayLike
-    coupling_sd: npt.ArrayLike
-    eps_a: float
-    alpha: float
-    beta: float
-    Delta0: float
-    spin_polarized: bool = False
-    eps_f: float = 0
-
-    @abc.abstractmethod
-    def get_hybridization_energy(self) -> npt.ArrayLike:
-        pass
-
-    @abc.abstractmethod
-    def get_orthogonalization_energy(self) -> npt.ArrayLike:
-        pass
-
-    @abc.abstractmethod
-    def get_chemisorption_energy(self) -> npt.ArrayLike:
-        pass
+from catchemi.core import BaseCalculation
 
 
 @dataclass
@@ -111,13 +88,13 @@ class FixedDimensionCalculation(BaseCalculation):
         rho_aa /= np.pi
         return rho_aa
 
-    def get_occupancy(self, rho_aa: npt.ArrayLike, eps: npt.ArrayLike):
+    def get_occupancy(self, rho_aa: npt.ArrayLike, eps: npt.ArrayLike) -> npt.ArrayLike:
         na_integrand = rho_aa * self.mask
         na = np.trapz(na_integrand, x=eps, axis=-1)
         na = na.reshape(-1, 1)
         return na
 
-    def get_filling(self, Delta: npt.ArrayLike, eps: npt.ArrayLike):
+    def get_filling(self, Delta: npt.ArrayLike, eps: npt.ArrayLike) -> npt.ArrayLike:
         f_integrand_numerator = Delta * self.mask
         f_integrand_denominator = Delta
         filling = np.trapz(f_integrand_numerator, x=eps, axis=-1) / np.trapz(

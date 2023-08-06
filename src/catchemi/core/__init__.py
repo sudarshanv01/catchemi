@@ -1,2 +1,2 @@
-from ._calculation import BaseCalculation
-from ._calculation import FixedDimensionCalculation
+from ._base import BaseCalculation
+from ._fixed_dim import FixedDimensionCalculation
