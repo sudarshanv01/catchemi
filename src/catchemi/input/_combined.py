@@ -34,13 +34,23 @@ class CombinedInput(abc.ABC):
     def get_combined_pdos(self):
         pass
 
+    @abc.abstractmethod
+    def get_combined_coupling_sd(self):
+        pass
+
 
 @dataclass
 class FixedDimCombinedInput(CombinedInput):
     inputs: Sequence[BaseInput]
+
+    def __repr__(self) -> str:
+        return super().__repr__()
 
     def get_combined_eps(self):
         return np.asarray([input.eps for input in self.inputs])
 
     def get_combined_pdos(self):
         return np.asarray([input.pdos for input in self.inputs])
+
+    def get_combined_coupling_sd(self):
+        return np.asarray([input.coupling_sd for input in self.inputs])

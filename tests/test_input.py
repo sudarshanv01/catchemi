@@ -27,7 +27,7 @@ def computed_inputs():
                 eps = np.linspace(-10, 10, n)
                 pdos = np.abs(np.random.rand(n))
                 eps_a = np.random.rand(1)
-                coupling_sd = np.random.rand(1)[0]
+                coupling_sd = np.random.rand(1)
             else:
                 _eps = np.linspace(-10, 10, n)
                 _pdos = np.abs(np.random.rand(n))
@@ -58,10 +58,13 @@ def test_BaseInput(computed_inputs):
 def test_CombinedInput(computed_inputs):
     class DummyCombinedInput(CombinedInput):
         def get_combined_eps(self):
-            return np.asarray([input.eps for input in self.inputs])
+            pass
 
         def get_combined_pdos(self):
-            return np.asarray([input.pdos for input in self.inputs])
+            pass
+
+        def get_combined_coupling_sd(self):
+            pass
 
     all_inputs = []
     for computed_input in computed_inputs():
@@ -89,6 +92,8 @@ def test_FixedDimCombinedInput(computed_inputs):
         assert np.allclose(_combined_input.eps_a, _computed_input.eps_a)
         assert _combined_input.is_spin_pol() == False
 
+    print(combined_input)
+
     assert len(combined_input) == len(all_inputs)
     expected = [input.eps for input in all_inputs]
     expected = np.asarray(expected)
@@ -98,6 +103,11 @@ def test_FixedDimCombinedInput(computed_inputs):
     expected = [input.pdos for input in all_inputs]
     expected = np.asarray(expected)
     output = combined_input.get_combined_pdos()
+    assert np.allclose(output, expected)
+
+    expected = [input.coupling_sd for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_coupling_sd()
     assert np.allclose(output, expected)
 
 
@@ -123,4 +133,9 @@ def test_FixedDimCombinedInput_spin_pol(computed_inputs):
     expected = [input.pdos for input in all_inputs]
     expected = np.asarray(expected)
     output = combined_input.get_combined_pdos()
+    assert np.allclose(output, expected)
+
+    expected = [input.coupling_sd for input in all_inputs]
+    expected = np.asarray(expected)
+    output = combined_input.get_combined_coupling_sd()
     assert np.allclose(output, expected)
