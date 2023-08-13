@@ -15,5 +15,5 @@ class BaseFitting(CombinedInput, abc.ABC):
     inputs: Sequence[BaseInput]
 
     @abc.abstractmethod
-    def error(self, *args, **kwargs) -> float:
+    def get_predicted_chemisorption_energies(self, *args, **kwargs) -> float:
         pass
