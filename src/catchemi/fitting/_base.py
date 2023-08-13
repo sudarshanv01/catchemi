@@ -23,3 +23,7 @@ class BaseFitting(CombinedInput, abc.ABC):
     @abc.abstractmethod
     def get_predicted_chemisorption_energies(self, *args, **kwargs) -> float:
         pass
+
+    @abc.abstractmethod
+    def get_mean_absolute_error(self, *args, **kwargs) -> float:
+        pass

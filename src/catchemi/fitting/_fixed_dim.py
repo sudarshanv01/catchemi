@@ -55,3 +55,23 @@ class FixedDimFitting(FixedDimCombinedInput):
                 chemisorption_energies += _chemisorption_energies
         chemisorption_energies += gamma
         return chemisorption_energies
+
+    def get_mean_absolute_error(
+        self,
+        alpha: npt.ArrayLike,
+        beta: npt.ArrayLike,
+        gamma: float,
+        Delta0: float,
+        eps_a: npt.ArrayLike,
+    ) -> float:
+        predicted_chemisorption_energies = self.get_predicted_chemisorption_energies(
+            alpha=alpha,
+            beta=beta,
+            gamma=gamma,
+            Delta0=Delta0,
+            eps_a=eps_a,
+        )
+        dft_chemisorption_energies = self.get_combined_dft_energy()
+        return np.mean(
+            np.abs(predicted_chemisorption_energies - dft_chemisorption_energies)
+        )

@@ -61,6 +61,9 @@ def test_BaseFitting(sequence_of_inputs):
         def get_combined_coupling_sd(self):
             pass
 
+        def get_mean_absolute_error(self, *args, **kwargs):
+            pass
+
     fitting_inputs = sequence_of_inputs()
     fitting = DummyFitting(fitting_inputs)
     assert fitting.inputs == fitting_inputs
@@ -84,3 +87,25 @@ def test_FixedDimFitting_spin_pol(sequence_of_inputs, initial_guess_parameters):
     )
     assert predicted_chemisorption_energies.shape == (len(fitting.inputs), 1)
     assert np.all(predicted_chemisorption_energies <= 0)
+
+
+def test_FixedDimFitting_mean_absolute_error(
+    sequence_of_inputs, initial_guess_parameters
+):
+    fitting_inputs = sequence_of_inputs(fixed_dim=True, spin_pol=False)
+    fitting = FixedDimFitting(fitting_inputs)
+    mean_absolute_error = fitting.get_mean_absolute_error(**initial_guess_parameters())
+    assert isinstance(mean_absolute_error, float)
+    assert mean_absolute_error >= 0
+
+
+def test_FixedDimFitting_mean_absolute_error_spin_pol(
+    sequence_of_inputs, initial_guess_parameters
+):
+    fitting_inputs = sequence_of_inputs(fixed_dim=True, spin_pol=True)
+    fitting = FixedDimFitting(fitting_inputs)
+    mean_absolute_error = fitting.get_mean_absolute_error(
+        **initial_guess_parameters(spin_polarized=True)
+    )
+    assert isinstance(mean_absolute_error, float)
+    assert mean_absolute_error >= 0
