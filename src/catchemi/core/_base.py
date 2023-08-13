@@ -8,6 +8,12 @@ import numpy.typing as npt
 
 @dataclass
 class BaseCalculation(abc.ABC):
+    """Abstract base class for calculations.
+
+    This class is used to perform calculations on the inputs. This
+    class is not meant to be used directly, but rather to be subclassed.
+    """
+
     eps: npt.ArrayLike
     pdos: npt.ArrayLike
     coupling_sd: npt.ArrayLike
