@@ -11,6 +11,20 @@ from catchemi.core import FixedDimensionCalculation
 
 @dataclass
 class FixedDimFitting(FixedDimCombinedInput):
+    """Fit the model to the data.
+
+    This class is used to fit the model to the data. Starting from
+    the combined input, the predicted chemisorption energy is computed
+    for each input. The predicted chemisorption energy is can be
+    compared to the DFT chemisorption energies to determine the best
+    parameters for the fit.
+
+    Parameters
+    ----------
+    inputs : Sequence[BaseInput]
+        The inputs to fit the model to.
+    """
+
     inputs: Sequence[BaseInput]
 
     def get_predicted_chemisorption_energies(
@@ -25,12 +39,6 @@ class FixedDimFitting(FixedDimCombinedInput):
         pdos = self.get_combined_pdos()
         coupling_sd = self.get_combined_coupling_sd()
         chemisorption_energies = np.zeros((eps.shape[0], 1))
-
-        if eps.ndim == 2:
-            eps = eps[:, None, :]
-            pdos = pdos[:, None, :]
-            coupling_sd = coupling_sd[:, None, :]
-
         for idx_a, _eps_a in enumerate(eps_a):
             for idx_s, _eps_as in enumerate(_eps_a):
                 calculation = FixedDimensionCalculation(
@@ -41,6 +49,7 @@ class FixedDimFitting(FixedDimCombinedInput):
                     alpha=alpha[idx_a, idx_s],
                     beta=beta[idx_a, idx_s],
                     Delta0=Delta0,
+                    spin_polarized=self.is_spin_polarized,
                 )
                 _chemisorption_energies = calculation.get_chemisorption_energy()
                 chemisorption_energies += _chemisorption_energies

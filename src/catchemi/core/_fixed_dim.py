@@ -13,6 +13,39 @@ from catchemi.core import BaseCalculation
 
 @dataclass
 class FixedDimensionCalculation(BaseCalculation):
+    """Perform calculations for the fixed dimension model.
+
+    This class is used to perform calculations for when the inputs
+    are performed at a fixed dimension. Starting from the inputs of
+    energies, projected density of states, and coupling strengths,
+    the hybridization energy, orthogonalization energy, and
+    chemisorption energy are computed.
+
+    Parameters
+    ----------
+    eps : npt.ArrayLike
+        Grid of energies.
+    pdos : npt.ArrayLike
+        Projected density of states on the grid of energies.
+    coupling_sd : npt.ArrayLike
+        Coupling strengths of the s-orbital of the adsorbate and
+        the d-orbital of the surface.
+    eps_a : float
+        Energy of the adsorbate state.
+    alpha : float
+        Parameter responsible for controlling orthogonalization energy.
+    beta : float
+        Parameter responsible for controlling hybridization energy and
+        chemisorption energy. Scaling factor for Vsd and Vak.
+    Delta0 : float
+        Constant shift of the normalized projected density of states.
+    spin_polarized : bool, optional
+        Whether or not the system is spin polarized. If True, the
+        spin factor is 1. If False, the spin factor is 2.
+    eps_f : float, optional
+        Fermi energy. Default is 0.
+    """
+
     eps: npt.ArrayLike
     pdos: npt.ArrayLike
     coupling_sd: npt.ArrayLike
@@ -34,9 +67,25 @@ class FixedDimensionCalculation(BaseCalculation):
         self.mask = mask
 
     def normalize_pdos(self, pdos: npt.ArrayLike) -> npt.ArrayLike:
+        """Normalize the projected density of states.
+
+        Make sure taht the projected density of states is normalized.
+        Denoted as rho_aa in most literature.
+
+        Parameters
+        ----------
+        pdos : npt.ArrayLike
+            Projected density of states.
+
+        Returns
+        -------
+        npt.ArrayLike
+            Normalized projected density of states.
+        """
         return pdos / np.sum(pdos, axis=1)[:, None]
 
     def get_Delta(self, Vaksq: npt.ArrayLike, rho_aa: npt.ArrayLike) -> npt.ArrayLike:
+        """Get the Delta parameter."""
         Delta = self.beta * Vaksq * rho_aa
         Delta += self.Delta0
         return Delta
