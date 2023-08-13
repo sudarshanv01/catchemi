@@ -35,6 +35,77 @@ class FixedDimFitting(FixedDimCombinedInput):
         Delta0: float,
         eps_a: npt.ArrayLike,
     ) -> float:
+        """Get the predicted chemisorption energies.
+
+        Based on the paramaters alpha, beta, gamma, Delta0, and eps_a,
+        compute the chemisorption energies using the `FixedDimensionCalculation`
+        model.
+
+        Parameters
+        ----------
+        alpha : npt.ArrayLike
+            The alpha parameter, expected to be of shape (num_parameters, spin_dimension).
+        beta : npt.ArrayLike
+            The beta parameter, expected to be of shape (num_parameters, spin_dimension).
+        gamma : float
+            The gamma parameter, a single constant which is added to each chemisorption energy.
+        Delta0 : float
+            The Delta0 parameter, a single constant which is used in the calculation of the
+            chemisorption energy (added to Delta).
+        eps_a : npt.ArrayLike
+            The eps_a parameter, expected to be of shape (num_parameters, spin_dimension).
+
+        Returns
+        -------
+        chemisorption_energies : float
+            The predicted chemisorption energies, expected to be of shape (num_inputs, 1).
+
+        See Also
+        --------
+        FixedDimensionCalculation
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from catchemi.input import BaseInput
+        >>> from catchemi.fitting import FixedDimFitting
+        >>> from catchemi.core import FixedDimensionCalculation
+        >>> # Create some dummy inputs for two different metals
+        >>> inputs = [
+        ...     BaseInput(
+        ...         eps=np.random.rand(10),
+        ...         pdos=np.random.rand(10),
+        ...         coupling_sd=np.random.rand(10),
+        ...         dft_energy=-1.0,
+        ...         spin_polarized=False,
+        ...     ),
+        ...     BaseInput(
+        ...         eps=np.random.rand(10),
+        ...         pdos=np.random.rand(10),
+        ...         coupling_sd=np.random.rand(10),
+        ...         dft_energy=-2.0,
+        ...         spin_polarized=False,
+        ...     ),
+        ... ]
+        >>> # Create the fitting object with one parameter
+        >>> # i.e. only one alpha and beta value
+        >>> fitting = FixedDimFitting(inputs=inputs)
+        >>> alpha = np.random.rand(1, 1)
+        >>> beta = np.random.rand(1, 1)
+        >>> gamma = 0.0
+        >>> Delta0 = 1.0
+        >>> eps_a = np.random.rand(1, 1)
+        >>> chemisorption_energies = fitting.get_predicted_chemisorption_energies(
+        ...     alpha=alpha,
+        ...     beta=beta,
+        ...     gamma=gamma,
+        ...     Delta0=Delta0,
+        ...     eps_a=eps_a,
+        ... )
+        >>> # The expected output is a 2x1 array, chemisorption energies for each input metal
+        >>> assert chemisorption_energies.shape == (2, 1)
+        """
+
         eps = self.get_combined_eps()
         pdos = self.get_combined_pdos()
         coupling_sd = self.get_combined_coupling_sd()
@@ -64,6 +135,37 @@ class FixedDimFitting(FixedDimCombinedInput):
         Delta0: float,
         eps_a: npt.ArrayLike,
     ) -> float:
+        """Get the mean absolute error of the predicted chemisorption energies.
+
+        Based on the paramaters alpha, beta, gamma, Delta0, and eps_a, compute
+        the chemisorption energies using the `FixedDimensionCalculation` model and
+        compare them to the DFT chemisorption energies.
+
+        Parameters
+        ----------
+        alpha : npt.ArrayLike
+            The alpha parameter, expected to be of shape (num_parameters, spin_dimension).
+        beta : npt.ArrayLike
+            The beta parameter, expected to be of shape (num_parameters, spin_dimension).
+        gamma : float
+            The gamma parameter, a single constant which is added to each chemisorption energy.
+        Delta0 : float
+            The Delta0 parameter, a single constant which is used in the calculation of the
+            chemisorption energy (added to Delta).
+        eps_a : npt.ArrayLike
+            The eps_a parameter, expected to be of shape (num_parameters, spin_dimension).
+
+        Returns
+        -------
+        mean_absolute_error : float
+            The mean absolute error of the predicted chemisorption energies compared to the
+            DFT chemisorption energies.
+
+        See Also
+        --------
+        FixedDimensionCalculation
+        """
+
         predicted_chemisorption_energies = self.get_predicted_chemisorption_energies(
             alpha=alpha,
             beta=beta,
