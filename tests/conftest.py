@@ -25,16 +25,19 @@ def computed_inputs():
                 eps = np.linspace(-10, 10, n)
                 pdos = np.abs(np.random.rand(n))
                 coupling_sd = np.random.rand(1)
+                dft_energy = np.random.rand(1)
             else:
                 _eps = np.linspace(-10, 10, n)
                 _pdos = np.abs(np.random.rand(n))
                 eps = np.vstack((_eps, _eps))
                 pdos = np.vstack((_pdos, _pdos))
                 coupling_sd = np.random.rand(2).reshape(-1, 1)
+                dft_energy = np.random.rand(1)
             yield {
                 "eps": eps,
                 "pdos": pdos,
                 "coupling_sd": coupling_sd,
+                "dft_energy": dft_energy,
             }
 
     return _computed_inputs

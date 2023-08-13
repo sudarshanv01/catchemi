@@ -116,3 +116,6 @@ class FixedDimCombinedInput(CombinedInput):
 
     def get_combined_coupling_sd(self):
         return np.asarray([input.coupling_sd for input in self.inputs])
+
+    def get_combined_dft_energy(self):
+        return np.asarray([input.dft_energy for input in self.inputs])

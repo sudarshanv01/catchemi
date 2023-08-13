@@ -27,6 +27,10 @@ class BaseInput:
     coupling_sd : npt.ArrayLike
         Coupling element between s-orbitals of the adsorbate and the d-bands
         of the surface. The expected shape of the matrix is (spin_dimension, 1)
+    dft_energy: float
+        DFT computed energy of chemisorption of the adsorbate on the surface.
+        Typically, this is the energy of the adsorbate on the surface minus
+        the energy of the adsorbate and the surface separately.
     spin_polarized : bool
         Whether the calculation is spin polarized or not. If True, the
         spin_dimension of the eps, pdos and coupling_sd matrices must be 2. Else,
@@ -68,6 +72,7 @@ class BaseInput:
     eps: npt.ArrayLike
     pdos: npt.ArrayLike
     coupling_sd: npt.ArrayLike
+    dft_energy: float
     spin_polarized: bool = False
 
     def __post_init__(self):
