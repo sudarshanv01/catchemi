@@ -85,7 +85,7 @@ class BaseInput:
                 self.eps = self.eps.reshape(1, -1)
             if self.pdos.ndim == 1:
                 self.pdos = self.pdos.reshape(1, -1)
-            if self.coupling_sd.ndim == 1:
+            if self.coupling_sd.ndim <= 1:
                 self.coupling_sd = self.coupling_sd.reshape(-1, 1)
 
     def __repr__(self):

@@ -174,6 +174,61 @@ class FixedDimFitting(FixedDimCombinedInput):
             eps_a=eps_a,
         )
         dft_chemisorption_energies = self.get_combined_dft_energy()
+        predicted_chemisorption_energies = predicted_chemisorption_energies.reshape(-1)
+        dft_chemisorption_energies = dft_chemisorption_energies.reshape(-1)
         return np.mean(
             np.abs(predicted_chemisorption_energies - dft_chemisorption_energies)
+        )
+
+    def get_least_squares_error(
+        self,
+        alpha: npt.ArrayLike,
+        beta: npt.ArrayLike,
+        gamma: float,
+        Delta0: float,
+        eps_a: npt.ArrayLike,
+    ):
+        """Get the least squares error of the predicted chemisorption energies.
+
+        Based on the paramaters alpha, beta, gamma, Delta0, and eps_a, compute
+        the chemisorption energies using the `FixedDimensionCalculation` model and
+        compare them to the DFT chemisorption energies.
+
+        Parameters
+        ----------
+        alpha : npt.ArrayLike
+            The alpha parameter, expected to be of shape (num_parameters, spin_dimension).
+        beta : npt.ArrayLike
+            The beta parameter, expected to be of shape (num_parameters, spin_dimension).
+        gamma : float
+            The gamma parameter, a single constant which is added to each chemisorption energy.
+        Delta0 : float
+            The Delta0 parameter, a single constant which is used in the calculation of the
+            chemisorption energy (added to Delta).
+        eps_a : npt.ArrayLike
+            The eps_a parameter, expected to be of shape (num_parameters, spin_dimension).
+
+        Returns
+        -------
+        least_squares_error : float
+            The least squares error of the predicted chemisorption energies compared to the
+            DFT chemisorption energies.
+
+        See Also
+        --------
+        FixedDimensionCalculation
+        """
+
+        predicted_chemisorption_energies = self.get_predicted_chemisorption_energies(
+            alpha=alpha,
+            beta=beta,
+            gamma=gamma,
+            Delta0=Delta0,
+            eps_a=eps_a,
+        )
+        dft_chemisorption_energies = self.get_combined_dft_energy()
+        predicted_chemisorption_energies = predicted_chemisorption_energies.reshape(-1)
+        dft_chemisorption_energies = dft_chemisorption_energies.reshape(-1)
+        return np.sum(
+            (predicted_chemisorption_energies - dft_chemisorption_energies) ** 2
         )

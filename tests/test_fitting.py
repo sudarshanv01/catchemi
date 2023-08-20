@@ -109,3 +109,25 @@ def test_FixedDimFitting_mean_absolute_error_spin_pol(
     )
     assert isinstance(mean_absolute_error, float)
     assert mean_absolute_error >= 0
+
+
+def test_FixedDimFitting_least_squares_error(
+    sequence_of_inputs, initial_guess_parameters
+):
+    fitting_inputs = sequence_of_inputs(fixed_dim=True, spin_pol=False)
+    fitting = FixedDimFitting(fitting_inputs)
+    least_squares_error = fitting.get_least_squares_error(**initial_guess_parameters())
+    assert isinstance(least_squares_error, float)
+    assert least_squares_error >= 0
+
+
+def test_FixedDimFitting_least_squares_error_spin_pol(
+    sequence_of_inputs, initial_guess_parameters
+):
+    fitting_inputs = sequence_of_inputs(fixed_dim=True, spin_pol=True)
+    fitting = FixedDimFitting(fitting_inputs)
+    least_squares_error = fitting.get_least_squares_error(
+        **initial_guess_parameters(spin_polarized=True)
+    )
+    assert isinstance(least_squares_error, float)
+    assert least_squares_error >= 0

@@ -103,7 +103,7 @@ class FixedDimensionCalculation(BaseCalculation):
         mask[self.eps < self.eps_f] = 1
         self.mask = mask
 
-    def normalize_pdos(self, pdos: npt.ArrayLike) -> npt.ArrayLike:
+    def normalize_pdos(self, pdos: npt.ArrayLike, eps: npt.ArrayLike) -> npt.ArrayLike:
         """Normalize the projected density of states.
 
         Make sure taht the projected density of states is normalized.
@@ -119,7 +119,9 @@ class FixedDimensionCalculation(BaseCalculation):
         npt.ArrayLike
             Normalized projected density of states.
         """
-        return pdos / np.sum(pdos, axis=1)[:, None]
+        integral = np.trapz(pdos, eps, axis=-1)
+        integral = integral.reshape(-1, 1)
+        return pdos / integral
 
     def get_Delta(self, Vaksq: npt.ArrayLike, rho_d: npt.ArrayLike) -> npt.ArrayLike:
         """Get the Delta parameter.
@@ -201,7 +203,7 @@ class FixedDimensionCalculation(BaseCalculation):
             Hybridization energy (in eV).
         """
         Vaksq = self.beta * self.coupling_sd**2
-        rho_d = self.normalize_pdos(self.pdos)
+        rho_d = self.normalize_pdos(self.pdos, self.eps)
         Delta = self.get_Delta(Vaksq, rho_d)
         Lambda = self.get_Lambda(Delta)
         arctan_integrand = self._get_arctan_integrand(
@@ -274,7 +276,7 @@ class FixedDimensionCalculation(BaseCalculation):
             Orthogonalization energy (in eV).
         """
         Vaksq = self.beta * self.coupling_sd**2
-        rho_d = self.normalize_pdos(self.pdos)
+        rho_d = self.normalize_pdos(self.pdos, self.eps)
         Delta = self.get_Delta(Vaksq, rho_d)
         Lambda = self.get_Lambda(Delta)
         rho_aa = self.get_adsorbate_density_of_states(
